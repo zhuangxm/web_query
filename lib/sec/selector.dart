@@ -4,7 +4,7 @@ import 'package:web_parser/sec/page_data.dart';
 import 'package:web_parser/sec/separator.dart';
 
 /// if data is collection then judge data is not empty.
-/// other type then judeg data is not null.
+/// other type then judge data is not null.
 bool judgeDataIsNotEmpty(data) {
   try {
     return data.isNotEmpty;
