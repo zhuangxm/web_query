@@ -5,11 +5,20 @@ class Separator {
   /// the class
   Separator(this.regExp, this.firstCanIgnore);
 
+  String unescape(String str) {
+    return str.replaceAllMapped(RegExp(r"\\([@/])"), (Match m) => m[1] ?? "");
+  }
+
   (String, String) split(String exp) {
     exp = exp.trim();
     final match = regExp.firstMatch(exp);
+    if (match != null && match.groupCount != 2) {
+      throw Exception("invalid separator statement: $regExp");
+    }
+
+    exp = unescape(exp);
     return match != null
-        ? (match.group(1)!, match.group(2)!)
+        ? (unescape(match.group(1)!), unescape(match.group(2)!))
         : firstCanIgnore
             ? ("", exp)
             : (exp, "");
@@ -62,7 +71,7 @@ const jsonTag = "json";
 const htmlTag = "html";
 final anySeparator = Separator(RegExp("^($anyTag|$everyTag)#(.*)"), true);
 final jsonSeparator = Separator(RegExp("^($jsonTag|$htmlTag):(.*)"), true);
-final attributeSeparator = Separator(RegExp("^(.*?)@(.*)"), false);
+final attributeSeparator = Separator(RegExp(r"^(.*?(?<!\\))@(.*)"), false);
 final regExpSeparator = Separator(RegExp("^(.*?)::(.*)"), false);
 const selectorExpPattern = "||";
 
@@ -86,42 +95,6 @@ Combination selectorsExpression(bool parentEvery, String selectorsExpression) {
       pattern: selectorExpPattern);
 }
 
-///represent like [anyOrEverytag#]expression
-///expression like [jsonOrHtmlTag:]subExpression
-///jsonOrHtmlTag could be "json" or "html" default is html
-class SelectorExpression {
-  late bool isJson;
-  final bool isEvery;
-  final String path;
-  late List<String> pathParts;
-  late RegExpWithReplace regExp;
-  SelectorExpression(
-      {required this.isEvery,
-      required isJson,
-      required this.path,
-      String reg = ""}) {
-    pathParts = path.split("/");
-    regExp = RegExpWithReplace(reg);
-  }
-
-  factory SelectorExpression.from(bool parentEvery, String selectorExpression) {
-    final combination = Combination(
-      parentEvery,
-      selectorExpression,
-    );
-    final (tag, expression) = jsonSeparator.split(combination.expression);
-    final isJson = tag == jsonTag;
-    return isJson
-        ? JsonSelectorExpression.from(combination.isEvery, expression)
-        : HtmlSelectorExpression.from(combination.isEvery, expression);
-  }
-
-  @override
-  String toString() {
-    return "isEvery: $isEvery, path: $path reg: $regExp";
-  }
-}
-
 class RegExpWithReplace {
   late String regExp;
   late String replacement;
@@ -131,7 +104,7 @@ class RegExpWithReplace {
       replacement = "";
     } else {
       final (reg_, replacement_) =
-          Separator(RegExp(r"(.*[^\\])/(.*?)"), false).split(reg);
+          Separator(RegExp(r"^(.*(?<!\\))/(.*?)$"), false).split(reg);
       regExp = reg_;
       replacement = replacement_;
     }
@@ -142,7 +115,7 @@ class RegExpWithReplace {
     final match = RegExp(regExp).firstMatch(value);
     String result = match == null
         ? ""
-        : (match.groupCount > 1)
+        : (match.groupCount > 0)
             ? match.group(1) ?? ""
             : match.group(0) ?? "";
 
@@ -151,73 +124,5 @@ class RegExpWithReplace {
     }
     //debugPrint("reg $regExp from $value to $result");
     return result;
-  }
-}
-
-class HtmlSelectorExpression extends SelectorExpression {
-  final String attribute;
-  late List<String> attributeParts;
-  final String cssSelector;
-  final String htmlTag;
-  HtmlSelectorExpression(
-      {required this.attribute,
-      required super.isEvery,
-      required super.path,
-      required this.htmlTag,
-      required this.cssSelector,
-      required super.reg,
-      required super.isJson}) {
-    attributeParts = attribute.split("|");
-  }
-  factory HtmlSelectorExpression.from(
-      bool parentEvery, String selectorExpression) {
-    final (pathBodyWithTag, attributeBody) =
-        attributeSeparator.split(selectorExpression);
-    final (htmlTag, pathBody) =
-        Separator(RegExp(r"^([\w]+?)\?(.*)"), true).split(pathBodyWithTag);
-    final (path, cssSelector) =
-        Separator(RegExp(r"^(.*)/(.*?)$"), true).split(pathBody);
-    final (attribute, regExp) = regExpSeparator.split(attributeBody);
-    return HtmlSelectorExpression(
-        isJson: false,
-        htmlTag: htmlTag,
-        attribute: attribute,
-        isEvery: parentEvery,
-        cssSelector: cssSelector,
-        path: path,
-        reg: regExp);
-  }
-
-  @override
-  toString() {
-    return "HtmlSelectorExpression htmlTag: $htmlTag, cssSelector: $cssSelector attributes: $attribute ${super.toString()}";
-  }
-}
-
-class JsonSelectorExpression extends SelectorExpression {
-  final String jsonId;
-  JsonSelectorExpression(
-      {required super.isJson,
-      required this.jsonId,
-      required super.isEvery,
-      required super.path,
-      required super.reg});
-
-  factory JsonSelectorExpression.from(
-      bool parentEvery, String selectorExpression) {
-    final (pathBody, regExp) = regExpSeparator.split(selectorExpression);
-    final (jsonId, path) =
-        Separator(RegExp(r"^(\w+?)?(.*)"), true).split(pathBody);
-    return JsonSelectorExpression(
-        jsonId: jsonId,
-        isJson: true,
-        isEvery: parentEvery,
-        path: path,
-        reg: regExp);
-  }
-
-  @override
-  String toString() {
-    return "JsonSelectorExpression jsonId: $jsonId ${super.toString()}";
   }
 }

@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:html/dom.dart' as dom;
+import 'package:web_parser/sec/expression.dart';
 import 'package:web_parser/sec/page_data.dart';
 import 'package:web_parser/sec/separator.dart';
 
@@ -90,6 +91,16 @@ abstract class Selector implements DataPicker {
         ? JsonSelector(expression as JsonSelectorExpression)
         : HtmlSelector(expression as HtmlSelectorExpression);
   }
+
+  /// replace $rootUrl$ , $pageUrl$ String with actually value.
+  String replaceValue(String str, PageData pageData) {
+    final pageUrl = pageData.url;
+    final rootUrl = Uri.parse(pageUrl).origin;
+
+    return str
+        .replaceAll(r"$rootUrl$", rootUrl)
+        .replaceAll(r"$pageUrl$", pageUrl);
+  }
 }
 
 class HtmlSelector extends Selector {
@@ -147,6 +158,8 @@ class HtmlSelector extends Selector {
   }
 
   String getAttributeValue(PageNode node, String attribute) {
+    final pageUrl = node.pageData.url;
+    final rootUrl = Uri.parse(pageUrl).origin;
     final result = (node.element == null)
         ? ""
         : attribute.isEmpty
@@ -158,11 +171,12 @@ class HtmlSelector extends Selector {
                 : switch (attribute) {
                     "innerHtml" => node.element!.innerHtml,
                     "outerHtml" => node.element!.outerHtml,
-                    "rootUrl" => node.pageData.url,
+                    "pageUrl" => pageUrl,
+                    "rootUrl" => rootUrl,
                     _ => node.element!.attributes[attribute] ?? ""
                   };
 
-    return expression.regExp.getValue(result);
+    return replaceValue(expression.regExp.getValue(result), node.pageData);
   }
 
   String getAttributesValue(PageNode node) {
@@ -256,7 +270,7 @@ class JsonSelector extends Selector {
               Combination(comb.isEvery, follows.first, pattern: "|"),
               follows.skip(1))
           : (data is String)
-              ? expression.regExp.getValue(data)
+              ? replaceValue(expression.regExp.getValue(data), node.pageData)
               : data;
     })).where((e) => e != null && judgeDataIsNotEmpty(e));
     return combineData(results, comb.isEvery);
