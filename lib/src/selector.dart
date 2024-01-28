@@ -1,8 +1,9 @@
 import 'package:collection/collection.dart';
 import 'package:html/dom.dart' as dom;
-import 'package:web_parser/src/expression.dart';
-import 'package:web_parser/src/page_data.dart';
-import 'package:web_parser/src/separator.dart';
+
+import '../src/expression.dart';
+import '../src/page_data.dart';
+import '../src/separator.dart';
 
 const maxCount = 10000;
 
