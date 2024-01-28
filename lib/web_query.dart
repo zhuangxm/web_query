@@ -3,6 +3,11 @@ library web_parser;
 import '../src/page_data.dart';
 import '../src/selector.dart';
 
+export 'src/expression.dart';
+export 'src/page_data.dart';
+export 'src/selector.dart';
+export 'src/separator.dart';
+
 /// selectors syntax, inside [] means optional
 /// String begin with lowercase mean string itself.
 /// String begin with Uppercase mean another expression type.
