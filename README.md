@@ -31,8 +31,8 @@ web_query:
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web_parser/sec/page_data.dart';
-import 'package:web_parser/web_query.dart';
+import 'package:web_query/sec/page_data.dart';
+import 'package:web_query/web_query.dart';
 
 const html = """
 <html>
