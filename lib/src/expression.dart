@@ -1,4 +1,4 @@
-import 'package:web_parser/sec/separator.dart';
+import 'package:web_parser/src/separator.dart';
 
 ///represent like [anyOrEveryTag#]expression
 ///expression like [jsonOrHtmlTag:]subExpression

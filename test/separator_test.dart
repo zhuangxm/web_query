@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web_parser/sec/separator.dart';
+import 'package:web_parser/src/separator.dart';
 
 void main() {
   testAttributeSeparator();

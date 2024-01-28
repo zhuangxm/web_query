@@ -1,7 +1,7 @@
 library web_parser;
 
-import 'package:web_parser/sec/page_data.dart';
-import 'package:web_parser/sec/selector.dart';
+import 'package:web_parser/src/page_data.dart';
+import 'package:web_parser/src/selector.dart';
 
 /// selectors syntax, inside [] means optional
 /// String begin with lowercase mean string itself.
