@@ -1,6 +1,6 @@
 import 'package:web_parser/sec/separator.dart';
 
-///represent like [anyOrEverytag#]expression
+///represent like [anyOrEveryTag#]expression
 ///expression like [jsonOrHtmlTag:]subExpression
 ///jsonOrHtmlTag could be "json" or "html" default is html
 class SelectorExpression {
