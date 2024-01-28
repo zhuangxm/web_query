@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web_parser/sec/selector.dart';
+import 'package:web_parser/src/selector.dart';
 
 void main() {
   test("selector test", () {

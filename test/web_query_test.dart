@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web_parser/sec/page_data.dart';
+import 'package:web_parser/src/page_data.dart';
 import 'package:web_parser/web_query.dart';
 
 const html = """
