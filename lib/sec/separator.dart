@@ -13,8 +13,11 @@ class Separator {
     exp = exp.trim();
     final match = regExp.firstMatch(exp);
     if (match != null && match.groupCount != 2) {
-      throw Exception("invalid separator statement: $regExp");
+      throw Exception("invalid separator statement: $regExp -- $exp");
     }
+
+    // debugPrint(
+    //     "match ${regExp.pattern} group count:  ${match?.groupCount} ${match?.group(0)} ${match?.group(1)} ${match?.group(2)}");
 
     exp = unescape(exp);
     return match != null

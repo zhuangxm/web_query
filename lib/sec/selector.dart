@@ -4,6 +4,8 @@ import 'package:web_parser/sec/expression.dart';
 import 'package:web_parser/sec/page_data.dart';
 import 'package:web_parser/sec/separator.dart';
 
+const maxCount = 10000;
+
 /// if data is collection then judge data is not empty.
 /// other type then judge data is not null.
 bool judgeDataIsNotEmpty(data) {
@@ -60,7 +62,7 @@ class Selectors implements DataPicker {
     return children
         .map((selector) => selector.getValue(node))
         .where((e) => e.isNotEmpty)
-        .take(isEvery ? 1000 : 1)
+        .take(isEvery ? maxCount : 1)
         .join("\n");
   }
 
@@ -184,7 +186,7 @@ class HtmlSelector extends Selector {
         ? ""
         : expression.attributeParts
             .map((attribute) => getAttributeValue(node, attribute))
-            .take(expression.isEvery ? 1000 : 1)
+            .take(expression.isEvery ? maxCount : 1)
             .join(" ");
   }
 
@@ -202,8 +204,10 @@ class HtmlSelector extends Selector {
       return (element == null ||
               (tag.isNotEmpty && tag != node.element!.localName))
           ? []
-          : querySelectAll(element, expression.cssSelector).map((e) =>
-              PageNode(node.pageData, element: e, jsonData: node.jsonData));
+          : querySelectAll(element, expression.cssSelector)
+              .map((e) =>
+                  PageNode(node.pageData, element: e, jsonData: node.jsonData))
+              .take(expression.isEvery ? maxCount : 1);
     } else {
       return [];
     }
@@ -214,7 +218,7 @@ class HtmlSelector extends Selector {
     return getCollection(node)
         .map((e) => getAttributesValue(e))
         .where((e) => judgeDataIsNotEmpty(e))
-        .take(expression.isEvery ? 1000 : 1)
+        .take(expression.isEvery ? maxCount : 1)
         .join(" ");
   }
 
@@ -293,8 +297,10 @@ class JsonSelector extends Selector {
     return data == null
         ? []
         : (data is Iterable)
-            ? data.map((e) =>
-                PageNode(node.pageData, element: node.element, jsonData: e))
+            ? data
+                .map((e) =>
+                    PageNode(node.pageData, element: node.element, jsonData: e))
+                .take(expression.isEvery ? maxCount : 1)
             : [PageNode(node.pageData, element: node.element, jsonData: data)];
   }
 

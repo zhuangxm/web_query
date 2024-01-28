@@ -11,7 +11,7 @@ class SelectorExpression {
   late RegExpWithReplace regExp;
   SelectorExpression(
       {required this.isEvery,
-      required isJson,
+      required this.isJson,
       required this.path,
       String reg = ""}) {
     pathParts = path.split("/");
@@ -89,7 +89,7 @@ class JsonSelectorExpression extends SelectorExpression {
       bool parentEvery, String selectorExpression) {
     final (pathBody, regExp) = regExpSeparator.split(selectorExpression);
     final (jsonId, path) =
-        Separator(RegExp(r"^(\w+?)?(.*)"), true).split(pathBody);
+        Separator(RegExp(r"^(\w+?)\?(.*)"), true).split(pathBody);
     return JsonSelectorExpression(
         jsonId: jsonId,
         isJson: true,
