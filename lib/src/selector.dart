@@ -187,6 +187,7 @@ class HtmlSelector extends Selector {
         ? ""
         : expression.attributeParts
             .map((attribute) => getAttributeValue(node, attribute))
+            .where((v) => v.isNotEmpty)
             .take(expression.isEvery ? maxCount : 1)
             .join(" ");
   }
