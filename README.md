@@ -7,7 +7,7 @@ using simple syntax to query web html or json data.
 adding library to pubspec.yaml
 
 ```
-web_query: 0.0.3
+web_query: 0.0.4
 ```
 
 ## Usage

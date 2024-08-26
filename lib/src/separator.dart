@@ -122,7 +122,7 @@ class RegExpWithReplace {
             ? match.group(1) ?? ""
             : match.group(0) ?? "";
 
-    if (replacement.isNotEmpty) {
+    if (match != null && replacement.isNotEmpty) {
       result = replacement.replaceAll(r"$$", result);
     }
     //debugPrint("reg $regExp from $value to $result");
