@@ -65,5 +65,10 @@ void testRegSeparator() {
     expect(test2.getValue("http://www.google.com"), "thttp://www.google.comt");
     RegExpWithReplace test3 = RegExpWithReplace(r"http:\/\/(.*)/t$$t");
     expect(test3.getValue("http://www.google.com"), "twww.google.comt");
+    RegExpWithReplace test4 =
+        RegExpWithReplace(r".*/https:\/\/www.google.com$$");
+    expect(test4.regExp, r".*");
+    expect(test4.replacement, r"https://www.google.com$$");
+    expect(test4.getValue("/root"), "https://www.google.com/root");
   });
 }

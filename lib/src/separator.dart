@@ -1,12 +1,15 @@
 class Separator {
   final RegExp regExp;
   final bool firstCanIgnore;
+  final bool isUnescape;
 
   /// the class
-  Separator(this.regExp, this.firstCanIgnore);
+  Separator(this.regExp, this.firstCanIgnore, {this.isUnescape = true});
 
   String unescape(String str) {
-    return str.replaceAllMapped(RegExp(r"\\([@/])"), (Match m) => m[1] ?? "");
+    return isUnescape
+        ? str.replaceAllMapped(RegExp(r"\\([@/])"), (Match m) => m[1] ?? "")
+        : str;
   }
 
   (String, String) split(String exp) {
@@ -72,10 +75,13 @@ const anyTag = 'any';
 const everyTag = 'every';
 const jsonTag = "json";
 const htmlTag = "html";
-final anySeparator = Separator(RegExp("^($anyTag|$everyTag)#(.*)"), true);
-final jsonSeparator = Separator(RegExp("^($jsonTag|$htmlTag):(.*)"), true);
+final anySeparator =
+    Separator(RegExp("^($anyTag|$everyTag)#(.*)"), true, isUnescape: false);
+final jsonSeparator =
+    Separator(RegExp("^($jsonTag|$htmlTag):(.*)"), true, isUnescape: false);
 final attributeSeparator = Separator(RegExp(r"^(.*?(?<!\\))@(.*)"), false);
-final regExpSeparator = Separator(RegExp("^(.*?)::(.*)"), false);
+final regExpSeparator =
+    Separator(RegExp("^(.*?)::(.*)"), false, isUnescape: false);
 const selectorExpPattern = "||";
 
 /// selectors expressions like: [anyOrEverytag#]selector [|| selector || selector]

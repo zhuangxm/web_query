@@ -7,6 +7,7 @@ class SelectorExpression {
   late bool isJson;
   final bool isEvery;
   final String path;
+  late String originalReg;
   late List<String> pathParts;
   late RegExpWithReplace regExp;
   SelectorExpression(
@@ -14,6 +15,7 @@ class SelectorExpression {
       required this.isJson,
       required this.path,
       String reg = ""}) {
+    originalReg = reg;
     pathParts = path.split("/");
     regExp = RegExpWithReplace(reg);
   }
@@ -53,13 +55,14 @@ class HtmlSelectorExpression extends SelectorExpression {
   }
   factory HtmlSelectorExpression.from(
       bool parentEvery, String selectorExpression) {
-    final (pathBodyWithTag, attributeBody) =
-        attributeSeparator.split(selectorExpression);
+    final (attributeBody, regExp) = regExpSeparator.split(selectorExpression);
+    final (pathBodyWithTag, attribute) =
+        attributeSeparator.split(attributeBody);
     final (htmlTag, pathBody) =
         Separator(RegExp(r"^([\w]+?)\?(.*)"), true).split(pathBodyWithTag);
     final (path, cssSelector) =
         Separator(RegExp(r"^(.*)/(.*?)$"), true).split(pathBody);
-    final (attribute, regExp) = regExpSeparator.split(attributeBody);
+    // final (attribute, regExp) = regExpSeparator.split(attributeBody);
     return HtmlSelectorExpression(
         isJson: false,
         htmlTag: htmlTag,
