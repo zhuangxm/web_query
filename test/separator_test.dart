@@ -70,5 +70,15 @@ void testRegSeparator() {
     expect(test4.regExp, r".*");
     expect(test4.replacement, r"https://www.google.com$$");
     expect(test4.getValue("/root"), "https://www.google.com/root");
+
+    RegExpWithReplace test5 = RegExpWithReplace(r".*?(\d+).*/$0$\/$$\/$1$");
+    expect(test5.regExp, r".*?(\d+).*");
+    expect(test5.replacement, r"$0$/$$/$1$");
+    expect(test5.getValue("a33b"), "a33b/33/33");
+
+    RegExpWithReplace test6 = RegExpWithReplace(r".*?\d+.*/---$$---");
+    expect(test6.regExp, r".*?\d+.*");
+    expect(test6.replacement, r"---$$---");
+    expect(test6.getValue("a33b"), "---a33b---");
   });
 }

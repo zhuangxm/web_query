@@ -128,8 +128,16 @@ class RegExpWithReplace {
             ? match.group(1) ?? ""
             : match.group(0) ?? "";
 
+    //replace $i$ with group(i)
+    //replace $$ with group(0) if match.groupCount = 0 else replace with group(1)
     if (match != null && replacement.isNotEmpty) {
       result = replacement.replaceAll(r"$$", result);
+      result = result.replaceAll(r"$0$", match.group(0) ?? "");
+      for (var i = 0; i < match.groupCount + 1; i++) {
+        if (match.groupCount > 0) {
+          result = result.replaceAll("\$$i\$", match.group(i) ?? "");
+        }
+      }
     }
     //debugPrint("reg $regExp from $value to $result");
     return result;
