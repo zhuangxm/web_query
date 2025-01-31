@@ -85,6 +85,26 @@ import 'package:web_query/web_query.dart';
 
 final _log = Logger('QueryString');
 
+//result of query, if the result is list, it will not be confused with the list of result
+class QueryResult<T> {
+  final T data;
+
+  QueryResult(this.data);
+
+  combine(QueryResult other) {
+    if (other.data == null) return this;
+    if (data == null) return other;
+    final otherList = (other.data is List) ? other.data : [other.data];
+    if (data is List) {
+      return QueryResult([...(data as List), ...otherList]);
+    }
+    return QueryResult([data, ...otherList]);
+  }
+
+  @override
+  String toString() => "QueryResult($data)";
+}
+
 class QueryString {
   final List<_QueryPart> _queries;
   late final PageNode _node;
@@ -116,25 +136,27 @@ class QueryString {
   }
 
   dynamic _executeQueries(PageNode node) {
-    var results = <dynamic>[];
+    var results = <QueryResult<List>>[];
 
     for (var query in _queries) {
       if (results.isNotEmpty && !_isRequired(query)) {
         continue;
       }
       var result = _executeSingleQuery(query, node);
-      if (result != null) {
-        // Apply transforms for this query part
-        result = _applyAllTransforms(result, query.transforms);
+      // _log.fine("query: $query, result: $result");
+      if (result.data.isNotEmpty) {
         results.add(result);
       }
     }
 
-    return results.isEmpty
+    final result = results.isEmpty
+        ? QueryResult([])
+        : results.reduce((combined, result) => combined.combine(result));
+    return result.data.isEmpty
         ? null
-        : results.length == 1
-            ? results.first
-            : results;
+        : result.data.length == 1
+            ? result.data.first
+            : result.data;
   }
 
   String _decodePath(Uri uri) {
@@ -142,37 +164,45 @@ class QueryString {
     return Uri.decodeFull(uri.path);
   }
 
-  dynamic _executeSingleQuery(_QueryPart query, PageNode node) {
+  QueryResult<List> _executeSingleQuery(_QueryPart query, PageNode node) {
     if (!['json', 'html'].contains(query.scheme)) {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
 
-    var currentResult = query.scheme == 'json' ? node.jsonData : node.element;
-
+    QueryResult<List> result;
     if (query.path.isNotEmpty) {
       final decodedPath = _decodePath(Uri.parse(query.path));
-      currentResult = query.scheme == 'json'
-          ? _applyJsonPathFor(currentResult, decodedPath)
-          : _applyHtmlPathFor(currentResult, decodedPath, query);
+      result = query.scheme == 'json'
+          ? _applyJsonPathFor(node.jsonData, decodedPath)
+          : _applyHtmlPathFor(node.element, decodedPath, query);
+    } else {
+      result = QueryResult([node]);
     }
-
-    return currentResult;
-  }
-
-  dynamic _applyJsonPathFor(dynamic data, String path) {
-    final pathParts = path.split('/').where((p) => p.isNotEmpty);
-
-    dynamic result = data;
-
-    for (var p in pathParts) {
-      result = _resolveJsonMultiPath(result, p);
-    }
+    result = QueryResult(result.data
+        .map((e) => _applyAllTransforms(e, query.transforms))
+        .map((e) => e is Element
+            ? PageNode(node.pageData, element: e)
+            : e is Map
+                ? PageNode(node.pageData, jsonData: e)
+                : e)
+        .toList());
     return result;
   }
 
-  dynamic _resolveJsonMultiPath(dynamic data, String path) {
+  QueryResult<List> _applyJsonPathFor(dynamic data, String path) {
+    final pathParts = path.split('/').where((p) => p.isNotEmpty);
+
+    var result = QueryResult(data);
+
+    for (var p in pathParts) {
+      result = _resolveJsonMultiPath(result.data, p);
+    }
+    return QueryResult(result.data == null ? [] : [result.data]);
+  }
+
+  QueryResult _resolveJsonMultiPath(dynamic data, String path) {
     final paths = path.split(',').map((p) => p.trim()).toList();
-    final resultList = <dynamic>[];
+    final resultList = <QueryResult>[];
     for (var p in paths) {
       final isRequired = p.endsWith('!');
       final cleanPath = isRequired ? p.substring(0, p.length - 1) : p;
@@ -183,21 +213,20 @@ class QueryString {
       final result = _resolveJsonPath(data, cleanPath);
 
       if (result != null) {
-        resultList.add(result);
+        resultList.add(QueryResult(result));
       }
     }
 
+    _log.fine("resultList: $resultList");
     return resultList.isEmpty
-        ? null
-        : resultList.length == 1
-            ? resultList.first
-            : resultList;
+        ? QueryResult(null)
+        : resultList.reduce((combined, result) => combined.combine(result));
   }
 
   dynamic _resolveJsonPath(dynamic data, String path) {
-    _log.fine("data: $data");
-    _log.fine(
-        "_resolveJsonPath data isMap: ${data is Map} isList ${data is List}, path: $path");
+    // _log.fine("data: $data");
+    // _log.fine(
+    //     "_resolveJsonPath data isMap: ${data is Map} isList ${data is List}, path: $path");
     if (path == '*') return data;
     if (data is List) {
       if (path.contains('-')) {
@@ -218,52 +247,53 @@ class QueryString {
       }
     } else if (data is Map) {
       return data[path];
-    } else {
-      return null;
     }
+    return null;
   }
 
-  dynamic _applyHtmlPathFor(dynamic element, String path, _QueryPart query) {
-    var current = element as Element?;
-    if (current == null) return null;
+  QueryResult<List> _applyHtmlPathFor(
+      Element? element, String path, _QueryPart query) {
+    if (element == null) return QueryResult([]);
 
     final parts = path.split('/').where((p) => p.isNotEmpty).toList();
-    if (parts.isEmpty) return current;
+    if (parts.isEmpty) return QueryResult([element]);
 
     final lastPart = parts.last;
     final operation = _getOperation(query);
 
     // Handle attribute or HTML content query in last part
-    if (lastPart.startsWith('@')) {
+    if (lastPart.startsWith('@') || lastPart.startsWith('.')) {
       parts.removeLast();
-      var elements = _navigateElement(current, parts, query);
-      return _extractHtmlValue(elements, lastPart, operation);
+      var elements = _navigateElement(element, parts, query);
+
+      // _log.fine(
+      //     'elements: $elements, lastPart: $lastPart, operation: $operation');
+      return QueryResult(_extractHtmlValue(elements, lastPart, operation));
     }
 
     if (parts.length > 1) {
       var elements =
-          _navigateElement(current, parts.sublist(0, parts.length - 1), query);
-      if (elements.isEmpty) return null;
+          _navigateElement(element, parts.sublist(0, parts.length - 1), query);
+      if (elements.isEmpty) return QueryResult([]);
 
       // For last part, apply operation mode
       if (operation == 'all') {
-        return elements.expand((e) => e.querySelectorAll(lastPart)).toList();
+        return QueryResult(
+            elements.expand((e) => e.querySelectorAll(lastPart)).toList());
       } else {
         var result = elements
             .map((e) => e.querySelector(lastPart))
             .where((e) => e != null)
             .toList();
-        return result.isEmpty ? null : result.first;
+        return QueryResult(result);
       }
     }
 
     // Single part path
     if (operation == 'all') {
-      var elements = current.querySelectorAll(lastPart);
-      return elements.isEmpty ? null : elements.toList();
+      return QueryResult(element.querySelectorAll(lastPart));
     } else {
-      var element = current.querySelector(lastPart);
-      return element != null ? [element] : null;
+      return QueryResult([element.querySelector(lastPart)]);
     }
   }
 
@@ -285,8 +315,8 @@ class QueryString {
   List<Element> _applySingleNavigation(
       Element element, String part, _QueryPart query) {
     final operation = _getOperation(query);
-    _log.fine(
-        'Navigating from ${element.localName} to: $part (op: $operation)');
+    // _log.fine(
+    //     'Navigating from ${element.localName} to: $part (op: $operation)');
 
     if (part.isEmpty) return [element];
 
@@ -322,14 +352,14 @@ class QueryString {
     }
   }
 
-  dynamic _extractHtmlValue(
+  List _extractHtmlValue(
       List<Element> elements, String accessor, String operation) {
-    if (elements.isEmpty) return null;
+    if (elements.isEmpty) return [];
 
     if (operation == 'all') {
       return elements.map((e) => _extractSingleValue(e, accessor)).toList();
     }
-    return _extractSingleValue(elements.first, accessor);
+    return [_extractSingleValue(elements.first, accessor)];
   }
 
   String? _extractSingleValue(Element element, String accessor) {
@@ -371,7 +401,7 @@ class QueryString {
   }
 
   dynamic _applyTransform(dynamic value, String transform) {
-    _log.fine("apply transform: $transform value $value");
+    // _log.fine("apply transform: $transform value $value");
     if (value == null) return null;
 
     if (transform.startsWith('regexp:')) {
@@ -390,6 +420,7 @@ class QueryString {
   }
 
   dynamic _applyUpdate(dynamic value, String updates) {
+    // _log.fine("apply update: $updates value $value");
     if (value is! Map) return value;
 
     try {
@@ -414,11 +445,11 @@ class QueryString {
     } else if (parts.length == 1) {
       parts.add("");
     }
-    _log.fine("apply regexp transform: $pattern $parts value $value");
+    // _log.fine("apply regexp transform: $pattern $parts value $value");
 
     // Decode special characters in pattern
     final regexPattern = Uri.decodeFull(parts[0].replaceAll(r'\/', '/'));
-    _log.fine("decoded pattern: $regexPattern");
+    // _log.fine("decoded pattern: $regexPattern");
 
     try {
       final regexp = RegExp(regexPattern);
@@ -453,9 +484,7 @@ class QueryString {
       // Replace pageUrl with full URL
       result = result.replaceAll(r'${pageUrl}', _node.pageData.url);
       // Replace rootUrl with origin (scheme + authority)
-      _log.fine("replace rootUrl, before: $result, rootUrl: ${pageUri.origin}");
       result = result.replaceAll(r'${rootUrl}', pageUri.origin);
-      _log.fine("replace rootUrl, after: $result");
     } catch (e) {
       // If URL parsing fails, leave replacement unchanged
     }

@@ -69,10 +69,8 @@ void main() {
     test('multiple paths', () {
       expect(QueryString('json://meta,content!/title').execute(testNode),
           ['JSON Title', 'Content Title']);
-      expect(QueryString('json://meta/title,tags!/*').execute(testNode), [
-        'JSON Title',
-        ['one', 'two', 'three']
-      ]);
+      expect(QueryString('json://meta/title,tags!/*').execute(testNode),
+          ['JSON Title', 'one', 'two', 'three']);
     });
 
     test('required paths', () {
@@ -240,8 +238,10 @@ void main() {
     test('map update transform', () {
       final query = QueryString('json://meta?update={"newKey":"value"}');
       final result = query.execute(testNode);
-      expect(result, containsPair('newKey', 'value'));
-      expect(result['title'], equals('JSON Title')); // Original data preserved
+      final jsonData = (result as PageNode).jsonData;
+      expect(jsonData, containsPair('newKey', 'value'));
+      expect(
+          jsonData['title'], equals('JSON Title')); // Original data preserved
     });
 
     test('regexp not match', () {
@@ -309,12 +309,8 @@ void main() {
       final query = QueryString(
           'html://.content/p/@text?op=all||html://.content/p/@text?op=one&required=true');
       final results = query.execute(testNode);
-      expect(
-          results,
-          equals([
-            ['First paragraph', 'Second paragraph'],
-            'First paragraph'
-          ]));
+      expect(results,
+          equals(['First paragraph', 'Second paragraph', 'First paragraph']));
     });
 
     test('operations are independent', () {
@@ -324,10 +320,7 @@ void main() {
       expect(
           results,
           equals(
-            [
-              ['First paragraph', 'Second paragraph'],
-              'First paragraph'
-            ],
+            ['First paragraph', 'Second paragraph', 'First paragraph'],
           ));
     });
 
@@ -337,10 +330,9 @@ void main() {
       final results = query.execute(testNode);
       expect(
           results,
-          equals([
-            ['FIRST PARAGRAPH', 'SECOND PARAGRAPH'],
-            'first paragraph'
-          ]));
+          equals(
+            ['FIRST PARAGRAPH', 'SECOND PARAGRAPH', 'first paragraph'],
+          ));
     });
   });
 }
