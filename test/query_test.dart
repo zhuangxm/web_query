@@ -51,10 +51,10 @@ void main() {
 
   group('JSON Path Resolution', () {
     test('basic json paths', () {
-      expect(QueryString('json://meta/title').execute(testNode), 'JSON Title');
-      expect(QueryString('json://content/title').execute(testNode),
-          'Content Title');
-      expect(QueryString('json://invalid/path').execute(testNode), isNull);
+      expect(QueryString('json:meta/title').execute(testNode), 'JSON Title');
+      expect(
+          QueryString('json:content/body').execute(testNode), 'Main content');
+      expect(QueryString('json:invalid/path').execute(testNode), isNull);
     });
 
     test('array access', () {
@@ -85,9 +85,9 @@ void main() {
 
   group('HTML Query Resolution', () {
     test('basic selectors', () {
-      expect(QueryString('html://h1/@text').execute(testNode), 'Title');
-      expect(QueryString('html://img/@src').execute(testNode), '/image.jpg');
-      expect(QueryString('html://.nonexistent').execute(testNode), isNull);
+      expect(QueryString('h1/@text').execute(testNode), 'Title');
+      expect(QueryString('img/@src').execute(testNode), '/image.jpg');
+      expect(QueryString('.nonexistent').execute(testNode), isNull);
     });
 
     test('navigation', () {
@@ -334,5 +334,34 @@ void main() {
             ['FIRST PARAGRAPH', 'SECOND PARAGRAPH', 'first paragraph'],
           ));
     });
+  });
+
+  group('Query Parsing', () {
+    test('simplified schemes', () {
+      expect(QueryString('json:meta/title').execute(testNode), 'JSON Title');
+      expect(QueryString('html:h1/@text').execute(testNode), 'Title');
+      expect(QueryString('h1/@text').execute(testNode), 'Title');
+    });
+
+    test('mixed schemes and paths', () {
+      expect(QueryString('json:meta/title||.content/p/@text').execute(testNode),
+          ['JSON Title', 'First paragraph']);
+      expect(
+          QueryString('meta/title?required=false||json:content/body')
+              .execute(testNode),
+          'Main content');
+    });
+  });
+
+  // Update test cases to use simplified syntax
+  test('basic json paths', () {
+    expect(QueryString('json:meta/title').execute(testNode), 'JSON Title');
+    expect(QueryString('json:content/body').execute(testNode), 'Main content');
+  });
+
+  test('basic html paths', () {
+    expect(QueryString('h1/@text').execute(testNode), 'Title');
+    expect(
+        QueryString('.content/p/@text').execute(testNode), 'First paragraph');
   });
 }

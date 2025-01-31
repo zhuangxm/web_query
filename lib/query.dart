@@ -217,7 +217,7 @@ class QueryString {
       }
     }
 
-    _log.fine("resultList: $resultList");
+    //_log.fine("resultList: $resultList");
     return resultList.isEmpty
         ? QueryResult(null)
         : resultList.reduce((combined, result) => combined.combine(result));
@@ -504,25 +504,32 @@ class _QueryPart {
   _QueryPart(this.scheme, this.path, this.parameters, this.transforms);
 
   static String _encodeQueryComponent(String value) {
-    // Preserve + by encoding it first
     return Uri.encodeQueryComponent(value).replaceAll('+', '%2B');
   }
 
   static _QueryPart parse(String queryString) {
-    // Pre-encode transform values to preserve special characters
+    // Handle simplified schemes
+    var scheme = 'html'; // Default scheme
+    if (queryString.startsWith('json:')) {
+      scheme = 'json';
+      queryString = queryString.substring(5);
+    } else if (queryString.startsWith('html:')) {
+      queryString = queryString.substring(5);
+    }
+
+    // Pre-encode transform values
     final transformRegex = RegExp(r'transform=([^&]+)');
     queryString = queryString.replaceAllMapped(transformRegex, (match) {
       return 'transform=${_encodeQueryComponent(match.group(1)!)}';
     });
 
-    // Add dummy host to make URI parsing work
-    var normalizedQuery = queryString.replaceFirst('://', '://dummy/');
-    final uri = Uri.parse(normalizedQuery);
+    // Add dummy host if needed
+    if (!queryString.contains('://')) {
+      queryString = '$scheme://dummy/$queryString';
+    }
 
-    // Remove dummy host from path
-    final path = uri.path.startsWith('/dummy/')
-        ? uri.path.substring(6)
-        : uri.path.substring(1);
+    final uri = Uri.parse(queryString);
+    final path = uri.path.replaceFirst('/dummy/', '');
 
     final params = Map<String, List<String>>.from(uri.queryParameters.map(
       (key, value) => MapEntry(key, value.split(';')),
@@ -538,11 +545,6 @@ class _QueryPart {
       params.remove('update');
     }
 
-    return _QueryPart(uri.scheme, path, params, transforms);
-  }
-
-  @override
-  String toString() {
-    return 'QueryPart: {scheme: $scheme, path: $path, parameters: $parameters}';
+    return _QueryPart(scheme, path, params, transforms);
   }
 }
