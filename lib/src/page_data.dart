@@ -50,6 +50,9 @@ class PageData {
     return PageNode(this,
         element: document?.documentElement, jsonData: jsonData);
   }
+
+  /// equal to [getRootElement].
+  PageNode root() => getRootElement();
 }
 
 /// return a [Element] of [document] or part of [jsonData] or both.

@@ -91,7 +91,7 @@ const selectorExpPattern = "||";
 /// anyOrEveryTag could be string "any" or "every", (no quotation), default is every
 /// example: selector1 || selector1
 /// means combine selector1 and selector2 result;
-/// example: every##selector1 || selector2
+/// example: every#selector1 || selector2
 /// means same thing above
 /// example: any#selector1 || selector2
 /// means if selector1 has result then choose selector1 otherwise selector2
