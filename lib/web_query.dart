@@ -2,8 +2,6 @@ library web_parser;
 
 import 'package:web_query/query.dart';
 
-import '../src/page_data.dart';
-
 export 'src/expression.dart';
 export 'src/page_data.dart';
 export 'src/selector.dart';

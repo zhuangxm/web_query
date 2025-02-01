@@ -103,7 +103,7 @@ class Selectors implements DataPicker {
   @override
   String getValue(PageNode node, {String separator = "\n"}) {
     return children
-        .map((selector) => selector.getValue(node, separator: separator))
+        .map((selector) => selector.getValue(node))
         .where((e) => e.isNotEmpty)
         .take(isEvery ? maxCount : 1)
         .join(separator);

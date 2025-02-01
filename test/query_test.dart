@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:html/dom.dart';
 import 'package:logging/logging.dart';
 import 'package:web_query/query.dart';
-import 'package:web_query/web_query.dart';
 
 void main() {
   late PageNode testNode;
@@ -17,7 +17,8 @@ void main() {
     final jsonData = {
       'meta': {
         'title': 'JSON Title',
-        'tags': ['one', 'two', 'three']
+        'tags': ['one', 'two', 'three'],
+        'secondTags': ['four', 'five', 'six']
       },
       'content': {
         'title': 'Content Title',
@@ -37,6 +38,8 @@ void main() {
             <div class="content">
               <p>First paragraph</p>
               <p>Second paragraph</p>
+              <a href="https://example1.com">Link1</a>
+              <a href="https://example2.com">Link2</a>
             </div>
             <img src="/image.jpg" alt="test">
           </div>
@@ -73,6 +76,18 @@ void main() {
           ['JSON Title', 'one', 'two', 'three']);
     });
 
+    test('multiple collection', () {
+      expect(QueryString('json://meta/tags,secondTags').execute(testNode),
+          ['one', 'two', 'three']);
+      expect(QueryString('json://meta/tags,secondTags!').execute(testNode),
+          ['one', 'two', 'three', 'four', 'five', 'six']);
+      final result =
+          QueryString('json://meta/tags,secondTags!').getCollection(testNode);
+      expect(result.map((e) => e.jsonData).toList(),
+          ['one', 'two', 'three', 'four', 'five', 'six'],
+          reason: 'collection');
+    });
+
     test('required paths', () {
       expect(QueryString('json://invalid,meta/title!').execute(testNode),
           'JSON Title');
@@ -99,6 +114,14 @@ void main() {
 
     test('multiple elements', () {
       expect(QueryString('html://.content/*p/@text').execute(testNode),
+          ['First paragraph', 'Second paragraph']);
+    });
+
+    test('multiple elements with invalid attributes', () {
+      expect(
+          QueryString(
+                  r'html://.content/*a/@href?transform=regexp:/^\/.*||html://.content/*p/@text')
+              .execute(testNode),
           ['First paragraph', 'Second paragraph']);
     });
   });
@@ -278,10 +301,9 @@ void main() {
     test('map update transform', () {
       final query = QueryString('json://meta?update={"newKey":"value"}');
       final result = query.execute(testNode);
-      final jsonData = (result as PageNode).jsonData;
-      expect(jsonData, containsPair('newKey', 'value'));
-      expect(
-          jsonData['title'], equals('JSON Title')); // Original data preserved
+      //final jsonData = (result as PageNode).jsonData;
+      expect(result, containsPair('newKey', 'value'));
+      expect(result['title'], equals('JSON Title')); // Original data preserved
     });
 
     test('regexp not match', () {
@@ -430,6 +452,48 @@ void main() {
       expect(
           QueryString('.content/*p/@text||.content/p/@text').execute(testNode),
           equals(['First paragraph', 'Second paragraph', 'First paragraph']));
+    });
+  });
+
+  group('API Compatibility', () {
+    test('getValue returns concatenated results', () {
+      expect(QueryString('.content/*p/@').getValue(testNode),
+          equals('First paragraph\nSecond paragraph'));
+      expect(QueryString('.content/*p/@').getValue(testNode, separator: ' '),
+          equals('First paragraph Second paragraph'));
+    });
+
+    test('getCollection returns PageNode list', () {
+      final nodes = QueryString('.content/*p').getCollection(testNode).toList();
+      expect(nodes.length, equals(2));
+      expect(nodes.every((n) => n is PageNode), isTrue);
+      expect(nodes.map((n) => n.element?.text).toList(),
+          equals(['First paragraph', 'Second paragraph']));
+    });
+
+    test('getCollectionValue returns raw elements', () {
+      final elements =
+          QueryString('.content/*p').getCollectionValue(testNode).toList();
+      expect(elements.length, equals(2));
+      expect(elements.every((e) => e is Element), isTrue);
+      expect(elements.map((e) => (e as Element).text).toList(),
+          equals(['First paragraph', 'Second paragraph']));
+    });
+
+    test('json query collection', () {
+      final values =
+          QueryString('json:content/comments/*').getCollectionValue(testNode);
+      print("values: $values");
+      expect(values.length, equals(2));
+      expect(values.map((e) => e['text']), equals(['Comment 1', 'Comment 2']));
+    });
+
+    test('mixed query types', () {
+      final query = QueryString('json:meta/title||.content/*p/@');
+      expect(query.getValue(testNode),
+          equals('JSON Title\nFirst paragraph\nSecond paragraph'));
+      expect(query.getCollection(testNode).map((n) => n.jsonData).toList(),
+          equals(['JSON Title', 'First paragraph', 'Second paragraph']));
     });
   });
 }

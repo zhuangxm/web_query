@@ -3,7 +3,11 @@ import 'dart:math';
 
 import 'package:html/dom.dart';
 import 'package:logging/logging.dart';
-import 'package:web_query/web_query.dart';
+
+import 'src/page_data.dart';
+import 'src/selector.dart';
+
+export 'src/page_data.dart';
 
 /// Query string syntax for extracting data from HTML and JSON.
 ///
@@ -107,20 +111,19 @@ import 'package:web_query/web_query.dart';
 
 final _log = Logger('QueryString');
 
-//result of query, if the result is list, it will not be confused with the list of result
-class QueryResult<T> {
-  final T data;
+//result of query, the result is list, it will not be confused with the list of result
+class QueryResult {
+  final List data;
 
-  QueryResult(this.data);
+  QueryResult(input)
+      : data = input is List
+            ? input
+            : input == null
+                ? []
+                : [input];
 
-  combine(QueryResult other) {
-    if (other.data == null) return this;
-    if (data == null) return other;
-    final otherList = (other.data is List) ? other.data : [other.data];
-    if (data is List) {
-      return QueryResult([...(data as List), ...otherList]);
-    }
-    return QueryResult([data, ...otherList]);
+  QueryResult combine(QueryResult other) {
+    return QueryResult([...data, ...other.data]);
   }
 
   @override
@@ -135,6 +138,7 @@ class QueryString extends DataPicker {
   QueryString(this.query, {this.newProtocol = true})
       : _queries = (query ?? "")
             .split('||')
+            .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
             .map((q) => _QueryPart.parse(q))
             .toList();
@@ -150,34 +154,33 @@ class QueryString extends DataPicker {
     if (newProtocol) {
       return _executeQueries(node, simplify);
     } else {
-      final selectors = Selectors(query ?? "");
-      return simplify
+      final selectors = Selectors(query);
+      return !simplify
           ? selectors.getCollection(node)
           : selectors.getValue(node);
     }
   }
 
   dynamic _executeQueries(PageNode node, bool simplify) {
-    var results = <QueryResult<List>>[];
+    QueryResult result = QueryResult([]);
 
     for (var i = 0; i < _queries.length; i++) {
       var query = _queries[i];
       // Skip if previous query succeeded and this isn't required
-      if (results.isNotEmpty && !_isRequired(query)) {
+      if (result.data.isNotEmpty && !_isRequired(query)) {
         continue;
       }
-      var result = _executeSingleQuery(query, node);
-      if (result.data.isNotEmpty) {
-        // Always include first query result
-        results.add(result);
-      }
+      var result_ = _executeSingleQuery(query, node);
+      //_log.fine("result_: $result_");
+      result = result.combine(result_);
+      //_log.fine("result: $result");
     }
 
-    final result = results.isEmpty
-        ? QueryResult([])
-        : results.reduce((combined, result) => combined.combine(result));
+    //_log.fine("execute queries result: $result");
     return !simplify
-        ? result.data
+        ? result.data.map((e) => e is Element
+            ? PageNode(node.pageData, element: e)
+            : PageNode(node.pageData, jsonData: e))
         : result.data.isEmpty
             ? null
             : result.data.length == 1
@@ -190,71 +193,66 @@ class QueryString extends DataPicker {
   //   return Uri.decodeFull(uri.path);
   // }
 
-  QueryResult<List> _executeSingleQuery(_QueryPart query, PageNode node) {
+  QueryResult _executeSingleQuery(_QueryPart query, PageNode node) {
     //_log.fine("execute query: $query");
     if (!['json', 'html'].contains(query.scheme)) {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
 
-    QueryResult<List> result;
+    QueryResult result = QueryResult([]);
     if (query.path.isNotEmpty) {
       //final decodedPath = _decodePath(Uri.parse(query.path));
       result = query.scheme == 'json'
           ? _applyJsonPathFor(node.jsonData, query.path)
           : _applyHtmlPathFor(node.element, query);
     } else {
-      result = QueryResult([node]);
+      result = QueryResult(node);
     }
     //_log.fine("execute query result before transform: $result");
     result = QueryResult(result.data
         .map((e) => _applyAllTransforms(node, e, query.transforms))
-        .map((e) => e is Element
-            ? PageNode(node.pageData, element: e)
-            : e is Map
-                ? PageNode(node.pageData, jsonData: e)
-                : e)
+        .where(
+            (e) => e != null && e != 'null' && e.toString().trim().isNotEmpty)
         .toList());
     return result;
   }
 
-  QueryResult<List> _applyJsonPathFor(dynamic data, String path) {
+  QueryResult _applyJsonPathFor(dynamic data, String path) {
     final pathParts = path.split('/').where((p) => p.isNotEmpty);
 
-    var result = QueryResult(data);
-
-    for (var p in pathParts) {
-      result = _resolveJsonMultiPath(result.data, p);
-    }
-    return QueryResult(result.data == null ? [] : [result.data]);
+    return _walkJsonPath(data, pathParts);
   }
 
-  QueryResult _resolveJsonMultiPath(dynamic data, String path) {
+  QueryResult _walkJsonPath(dynamic data, Iterable<String> pathParts) {
+    if (pathParts.isEmpty) return QueryResult([]);
+    return _resolveJsonMultiPath(data, pathParts.first, pathParts.skip(1));
+  }
+
+  QueryResult _resolveJsonMultiPath(
+      dynamic data, String path, Iterable<String> rest) {
     final paths = path.split(',').map((p) => p.trim()).toList();
-    final resultList = <QueryResult>[];
+    var result = QueryResult([]);
     for (var p in paths) {
       final isRequired = p.endsWith('!');
       final cleanPath = isRequired ? p.substring(0, p.length - 1) : p;
-      if (resultList.isNotEmpty && !isRequired) {
+      if (result.data.isNotEmpty && !isRequired) {
         continue;
       }
 
-      final result = _resolveJsonPath(data, cleanPath);
+      final result_ = _resolveJsonPath(data, cleanPath);
 
-      if (result != null) {
-        resultList.add(QueryResult(result));
-      }
+      result = result.combine(
+          rest.isEmpty ? QueryResult(result_) : _walkJsonPath(result_, rest));
     }
 
     //_log.fine("resultList: $resultList");
-    return resultList.isEmpty
-        ? QueryResult(null)
-        : resultList.reduce((combined, result) => combined.combine(result));
+    return result;
   }
 
   dynamic _resolveJsonPath(dynamic data, String path) {
-    // _log.fine("data: $data");
-    // _log.fine(
-    //     "_resolveJsonPath data isMap: ${data is Map} isList ${data is List}, path: $path");
+    _log.fine("data: $data");
+    _log.fine(
+        "_resolveJsonPath data isMap: ${data is Map} isList ${data is List}, path: $path");
     if (path == '*') return data;
     if (data is List) {
       if (path.contains('-')) {
@@ -270,7 +268,7 @@ class QueryString extends DataPicker {
           if (index < 0 || index >= data.length) return null;
           return data[index];
         } else {
-          return data.map((e) => e[path]).toList();
+          return data.map((e) => e?[path]).where((t) => t != null).toList();
         }
       }
     } else if (data is Map) {
@@ -279,7 +277,7 @@ class QueryString extends DataPicker {
     return null;
   }
 
-  QueryResult<List> _applyHtmlPathFor(Element? element, _QueryPart query) {
+  QueryResult _applyHtmlPathFor(Element? element, _QueryPart query) {
     if (element == null) return QueryResult([]);
 
     final parts = query.path.split('/').where((p) => p.isNotEmpty).toList();
@@ -360,9 +358,9 @@ class QueryString extends DataPicker {
     }
     switch (accessor) {
       case '@':
-        return element.text;
+        return element.text.trim();
       case '@text':
-        return element.text;
+        return element.text.trim();
       case '@html':
         return element.innerHtml;
       case '@innerHtml':
@@ -495,7 +493,10 @@ class QueryString extends DataPicker {
 
   @override
   Iterable<PageNode> getCollection(PageNode node) {
-    return _executeQueries(node, false);
+    final result = execute(node, simplify: false);
+    _log.fine(
+        "getCollection result: $result ${result.runtimeType} ${result.length}");
+    return List<PageNode>.from(result);
   }
 
   @override
@@ -505,8 +506,8 @@ class QueryString extends DataPicker {
 
   @override
   String getValue(PageNode node, {String separator = '\n'}) {
-    final result = _executeQueries(node, true);
-    return result is List ? result.join(separator) : result.toString();
+    final result = execute(node);
+    return result is List ? result.join(separator) : (result ?? "").toString();
   }
 }
 
