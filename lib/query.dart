@@ -130,36 +130,31 @@ class QueryResult<T> {
 class QueryString {
   final List<_QueryPart> _queries;
 
-  QueryString(String query)
-      : _queries = query.split('||').map((q) => _QueryPart.parse(q)).toList();
+  QueryString(String? query)
+      : _queries = (query ?? "")
+            .split('||')
+            .where((e) => e.isNotEmpty)
+            .map((q) => _QueryPart.parse(q))
+            .toList();
 
-  bool get isJson => _queries.first.scheme == 'json';
-  bool get isHtml => _queries.first.scheme == 'html';
-  String get path => _queries.first.path;
-  Map<String, List<String>> get transforms => _queries.first.transforms;
-
-  bool _isRequired(_QueryPart query, bool isFirst) {
-    if (isFirst) {
-      return true; // First query is always required, ignore parameter
-    }
-    // Only check parameter for non-first queries
+  bool _isRequired(_QueryPart query) {
     if (query.parameters.containsKey('required')) {
       return query.parameters['required']?.first.toLowerCase() == 'true';
     }
     return true; // Other queries are optional by default
   }
 
-  dynamic execute(PageNode node) {
-    return _executeQueries(node);
+  dynamic execute(PageNode node, {bool simplify = true}) {
+    return _executeQueries(node, simplify);
   }
 
-  dynamic _executeQueries(PageNode node) {
+  dynamic _executeQueries(PageNode node, bool simplify) {
     var results = <QueryResult<List>>[];
 
     for (var i = 0; i < _queries.length; i++) {
       var query = _queries[i];
       // Skip if previous query succeeded and this isn't required
-      if (results.isNotEmpty && !_isRequired(query, false)) {
+      if (results.isNotEmpty && !_isRequired(query)) {
         continue;
       }
       var result = _executeSingleQuery(query, node);
@@ -172,11 +167,13 @@ class QueryString {
     final result = results.isEmpty
         ? QueryResult([])
         : results.reduce((combined, result) => combined.combine(result));
-    return result.data.isEmpty
-        ? null
-        : result.data.length == 1
-            ? result.data.first
-            : result.data;
+    return !simplify
+        ? result.data
+        : result.data.isEmpty
+            ? null
+            : result.data.length == 1
+                ? result.data.first
+                : result.data;
   }
 
   String _decodePath(Uri uri) {
@@ -185,6 +182,7 @@ class QueryString {
   }
 
   QueryResult<List> _executeSingleQuery(_QueryPart query, PageNode node) {
+    _log.fine("execute query: $query");
     if (!['json', 'html'].contains(query.scheme)) {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
@@ -537,5 +535,10 @@ class _QueryPart {
     }
 
     return _QueryPart(scheme, path, params, transforms);
+  }
+
+  @override
+  String toString() {
+    return "_QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms)";
   }
 }
