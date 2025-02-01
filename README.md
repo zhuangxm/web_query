@@ -159,15 +159,24 @@ final result = query.execute(pageData.getRootElement()); // "Page Title"
 '@src?transform=regexp:/^\/(.+)/${rootUrl}$1/'
 ```
 
-## Legacy API
+## Legacy Api
 
-The old API is still supported but deprecated:
+Selectors is still supported but deprecated
+[QueryString] [webValue] [webCollection] support both new and old protocol.
+but default using new protocol.
+new protocol document refer query.dart
+old protocol document refer src/selector.dar
+
+## Legacy Protocol
+
+The old protocol is still supported but deprecated:
+newProtocol default is true, if using oldProtocol must specify named parameter [newProtocol] = false
 
 ```dart
-webValue(element, "div a")               // Get first value
-webCollection(element, "div a")          // Get all matches
-webValue(element, "any#div a")          // Get one
-webCollection(element, "any#div a")      // Get one as list
+webValue(element, "div a", newProtocol = false)               // Get first value
+webCollection(element, "div a", newProtocol = false)          // Get all matches
+webValue(element, "any#div a", newProtocol = false)          // Get one
+webCollection(element, "any#div a", newProtocol = false)      // Get one as list
 ```
 
 ## Contributing
