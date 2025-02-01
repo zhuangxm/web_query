@@ -364,4 +364,46 @@ void main() {
     expect(
         QueryString('.content/p/@text').execute(testNode), 'First paragraph');
   });
+
+  group('HTML Class Resolution', () {
+    test('checks class existence', () {
+      expect(QueryString('.container/@.container').execute(testNode), 'true');
+      expect(QueryString('.content/@.missing').execute(testNode), 'false');
+    });
+
+    test('wildcard class match', () {
+      const html =
+          '<div class="container prefix-class class-suffix middle">Content</div>';
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      expect(QueryString('div/@.prefix*').execute(node), 'true',
+          reason: 'prefix');
+      expect(QueryString('div/@.*suffix').execute(node), 'true',
+          reason: 'suffix');
+      expect(QueryString('div/@.*middle*').execute(node), 'true',
+          reason: 'middle');
+      expect(QueryString('div/@.pre*fix').execute(node), 'false',
+          reason: 'pre*fix');
+      expect(QueryString('div/@.*xyz*').execute(node), 'false');
+    });
+
+    test('multiple class checks', () {
+      const html = '<div class="one two three">Content</div>';
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      expect(QueryString('div/@.one').execute(node), 'true', reason: 'one');
+      expect(QueryString('div/@.two').execute(node), 'true', reason: 'two');
+      expect(QueryString('div/@.tw').execute(node), 'false', reason: 'tw');
+      expect(QueryString('div/@.four').execute(node), 'false', reason: 'four');
+    });
+
+    test('class check with transforms', () {
+      expect(
+          QueryString('.container/@.container?transform=regexp:/true/yes/')
+              .execute(testNode),
+          'yes');
+    });
+  });
 }

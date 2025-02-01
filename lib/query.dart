@@ -262,7 +262,7 @@ class QueryString {
     final operation = _getOperation(query);
 
     // Handle attribute or HTML content query in last part
-    if (lastPart.startsWith('@') || lastPart.startsWith('.')) {
+    if (lastPart.startsWith('@')) {
       parts.removeLast();
       var elements = _navigateElement(element, parts, query);
 
@@ -363,6 +363,16 @@ class QueryString {
   }
 
   String? _extractSingleValue(Element element, String accessor) {
+    if (accessor.startsWith('@.')) {
+      final className = accessor.substring(2);
+      if (className.contains('*')) {
+        final pattern = '^${className.replaceAll('*', '.*')}\$';
+        return element.classes
+            .any((e) => RegExp(pattern).hasMatch(e))
+            .toString();
+      }
+      return element.classes.contains(className).toString();
+    }
     switch (accessor) {
       case '@text':
         return element.text;
