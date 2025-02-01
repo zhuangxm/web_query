@@ -9,6 +9,27 @@ import 'src/selector.dart';
 
 export 'src/page_data.dart';
 
+final _log = Logger('QueryString');
+
+//result of query, the result is list, it will not be confused with the list of result
+class QueryResult {
+  final List data;
+
+  QueryResult(input)
+      : data = input is List
+            ? input
+            : input == null
+                ? []
+                : [input];
+
+  QueryResult combine(QueryResult other) {
+    return QueryResult([...data, ...other.data]);
+  }
+
+  @override
+  String toString() => "QueryResult($data)";
+}
+
 /// Query string syntax for extracting data from HTML and JSON.
 ///
 /// Basic usage:
@@ -108,28 +129,6 @@ export 'src/page_data.dart';
 /// 'p/@text'              // First paragraph only
 /// '.content/p/@text'     // First paragraph in content
 /// ```
-
-final _log = Logger('QueryString');
-
-//result of query, the result is list, it will not be confused with the list of result
-class QueryResult {
-  final List data;
-
-  QueryResult(input)
-      : data = input is List
-            ? input
-            : input == null
-                ? []
-                : [input];
-
-  QueryResult combine(QueryResult other) {
-    return QueryResult([...data, ...other.data]);
-  }
-
-  @override
-  String toString() => "QueryResult($data)";
-}
-
 class QueryString extends DataPicker {
   final List<_QueryPart> _queries;
   final bool newProtocol;
@@ -250,9 +249,9 @@ class QueryString extends DataPicker {
   }
 
   dynamic _resolveJsonPath(dynamic data, String path) {
-    _log.fine("data: $data");
-    _log.fine(
-        "_resolveJsonPath data isMap: ${data is Map} isList ${data is List}, path: $path");
+    // _log.fine("data: $data");
+    // _log.fine(
+    //     "_resolveJsonPath data isMap: ${data is Map} isList ${data is List}, path: $path");
     if (path == '*') return data;
     if (data is List) {
       if (path.contains('-')) {
@@ -494,8 +493,8 @@ class QueryString extends DataPicker {
   @override
   Iterable<PageNode> getCollection(PageNode node) {
     final result = execute(node, simplify: false);
-    _log.fine(
-        "getCollection result: $result ${result.runtimeType} ${result.length}");
+    // _log.fine(
+    //     "getCollection result: $result ${result.runtimeType} ${result.length}");
     return List<PageNode>.from(result);
   }
 
