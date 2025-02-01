@@ -281,19 +281,10 @@ class QueryString {
     final lastPart = parts.last;
 
     // Handle attribute or HTML content query in last part
-    if (lastPart.startsWith('@')) {
-      parts.removeLast();
-      var elements = _navigateElement(element, parts, query);
-      return QueryResult(_extractHtmlValue(elements, lastPart));
-    }
-
-    var elements =
-        _navigateElement(element, parts.sublist(0, parts.length - 1), query);
-    if (elements.isEmpty) return QueryResult([]);
-
-    // Use prefix for last part
-    return QueryResult(
-        elements.expand((e) => _querySelectorWithPrefix(e, lastPart)).toList());
+    var elements = _navigateElement(element, parts, query);
+    return lastPart.startsWith('@')
+        ? QueryResult(_extractHtmlValue(elements, lastPart))
+        : QueryResult(elements);
   }
 
   List<Element> _querySelectorWithPrefix(Element element, String selector) {
@@ -319,7 +310,7 @@ class QueryString {
   }
 
   List<Element> _applySingleNavigation(Element element, String part) {
-    if (part.isEmpty) return [element];
+    if (part.isEmpty || part.startsWith("@")) return [element];
 
     switch (part) {
       case '^^':
