@@ -1,67 +1,168 @@
-using simple syntax to query web html or json data.
+# Web Query
+
+A Flutter library for querying HTML and JSON data using a simple syntax.
 
 ## Features
 
+- Simple query syntax for HTML and JSON data
+- CSS-like selectors for HTML elements
+- JSON path navigation
+- Element navigation operators
+- Transform operations
+- Class name checking
+- Chaining and fallback queries
+
 ## Getting started
 
-adding library to pubspec.yaml
+Add to your pubspec.yaml:
 
-```
-web_query: 0.0.5
+```yaml
+dependencies:
+  web_query: ^0.1.0
 ```
 
 ## Usage
 
+### Basic HTML Query
+
 ```dart
-import 'dart:convert';
+const html = '''
+<div class="videos">
+  <a href="a1">a1 text</a>
+  <a href="a2">a2 text</a>
+</div>
+''';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:web_query/web_query.dart';
+final pageData = PageData("https://example.com", html);
+final query = QueryString('div a/@text');
+final result = query.execute(pageData.getRootElement()); // "a1 text"
+```
 
-const html = """
-<html>
-  <div class="videos">
-    <a href="a1">a1 text</a>
-    <a href="a2">a2 text</a>
-  </div>
-</html>
-""";
+### JSON Query
 
+```dart
 const jsonData = {
-  "props": {
-    "videos": [
-      {"id": "id1", "url": "http://s1"},
-      {"id": "id2", "url": "http://s12"}
-    ]
+  "meta": {
+    "title": "Page Title",
+    "tags": ["one", "two"]
   }
 };
 
-final pageData =
-    PageData("https://test.com", html, jsonData: jsonEncode(jsonData));
-
-void main() {
-  test("test web value", () {
-    expect(webValue(pageData.getRootElement(), "div a"), "a1 text a2 text");
-    expect(webValue(pageData.getRootElement(), "any#div a"), "a1 text");
-    expect(webCollection(pageData.getRootElement(), "div a").length, 2);
-    expect(webCollection(pageData.getRootElement(), "any#div a").length, 1);
-    expect(
-        webValue(pageData.getRootElement(), "json:props/videos/1/id"), "id2");
-    expect(webValue(pageData.getRootElement(), "json:props/videos/0|1/id"),
-        "id1 id2");
-    expect(webValue(pageData.getRootElement(), "json:props/videos/any#0|1/id"),
-        "id1");
-    expect(webCollection(pageData.getRootElement(), "json:props/videos").length,
-        2);
-    expect(
-        webCollection(pageData.getRootElement(), "any#json:props/videos")
-            .length,
-        1);
-  });
-}
-
+final pageData = PageData("https://example.com", "<html></html>",
+    jsonData: jsonEncode(jsonData));
+final query = QueryString('json:meta/title');
+final result = query.execute(pageData.getRootElement()); // "Page Title"
 ```
 
-## Additional information
+## Query Syntax
 
-Please see lib/web_query.dart for more information about expression syntax.
+### Schemes
+
+- `json:path` - Query JSON data
+- `html:path` - Query HTML elements (optional, default)
+- Just `path` - Defaults to HTML query
+
+### HTML Queries
+
+```dart
+// Basic selectors
+'div p'              // Find paragraphs in divs
+'.class'             // Find by class
+'#id'               // Find by id
+
+// Navigation
+'div/^'             // Parent
+'div/>'             // First child
+'div/+>'            // Next sibling
+'div/-'             // Previous sibling
+
+// Attributes
+'a/@href'           // Get href attribute
+'div/@text'         // Get text content
+'div/@html'         // Get inner HTML
+'div/@.class'       // Check if class exists
+'div/@.prefix*'     // Match class with prefix
+'div/@.*suffix'     // Match class with suffix
+```
+
+### JSON Queries
+
+```dart
+// Basic paths
+'json:meta/title'           // Get value
+'json:items/0/name'         // Array index
+'json:items/*'             // All array items
+'json:items/1-3'           // Array range
+
+// Multiple paths
+'json:title,description'    // Get multiple values
+'json:meta/title,tags/*'   // Mix paths and arrays
+```
+
+### Query Parameters
+
+```dart
+// Operations
+'div/p?op=all'                    // Get all matches
+'div/p?required=false'            // Optional in chain
+
+// Transforms
+'@text?transform=upper'           // Uppercase
+'@text?transform=lower'           // Lowercase
+'@src?transform=regexp:/pat/rep/' // RegExp replace
+```
+
+### Chaining Queries
+
+```dart
+// Fallback chain
+'json:meta/title||h1/@text'
+
+// Multiple required
+'json:meta/title||json:content/body'
+
+// Mixed with transforms
+'json:title?transform=upper||div/p?transform=lower'
+```
+
+## Additional Features
+
+### Class Name Matching
+
+```dart
+// Check exact class
+'div/@.featured'          // true/false
+
+// Wildcard matching
+'div/@.prefix*'          // Matches prefix-anything
+'div/@.*suffix'          // Matches anything-suffix
+'div/@.*part*'          // Matches containing part
+```
+
+### RegExp Transforms
+
+```dart
+// Match only
+'@text?transform=regexp:/pattern/'
+
+// Replace
+'@text?transform=regexp:/pattern/replacement/'
+
+// With variables
+'@src?transform=regexp:/^\/(.+)/${rootUrl}$1/'
+```
+
+## Legacy API
+
+The old API is still supported but deprecated:
+
+```dart
+webValue(element, "div a")               // Get first value
+webCollection(element, "div a")          // Get all matches
+webValue(element, "any#div a")          // Get one
+webCollection(element, "any#div a")      // Get one as list
+```
+
+## Contributing
+
+Feel free to file feature requests and bug reports at the [issue tracker](link-to-issues).
