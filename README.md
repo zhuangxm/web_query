@@ -34,8 +34,13 @@ const html = '''
 ''';
 
 final pageData = PageData("https://example.com", html);
+// new protocol
 final query = QueryString('div a/@text');
-final result = query.execute(pageData.getRootElement()); // "a1 text"
+// compatible with old protocol
+final queryOld = QueryString('div a@text', newProtocol = false);
+final executeResult = query.execute(pageData.getRootElement()); // "a1 text"
+final valueResult = query.getValue(pageData.getRootElement()); // "a1 text"
+final listResult = query.getCollection(pageData.getRootElement()); // ["a1 text"]
 ```
 
 ### JSON Query

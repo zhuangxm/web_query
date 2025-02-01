@@ -127,10 +127,12 @@ class QueryResult<T> {
   String toString() => "QueryResult($data)";
 }
 
-class QueryString {
+class QueryString extends DataPicker {
   final List<_QueryPart> _queries;
+  final bool newProtocol;
+  final String? query;
 
-  QueryString(String? query)
+  QueryString(this.query, {this.newProtocol = true})
       : _queries = (query ?? "")
             .split('||')
             .where((e) => e.isNotEmpty)
@@ -145,7 +147,14 @@ class QueryString {
   }
 
   dynamic execute(PageNode node, {bool simplify = true}) {
-    return _executeQueries(node, simplify);
+    if (newProtocol) {
+      return _executeQueries(node, simplify);
+    } else {
+      final selectors = Selectors(query ?? "");
+      return simplify
+          ? selectors.getCollection(node)
+          : selectors.getValue(node);
+    }
   }
 
   dynamic _executeQueries(PageNode node, bool simplify) {
@@ -176,13 +185,13 @@ class QueryString {
                 : result.data;
   }
 
-  String _decodePath(Uri uri) {
-    // Decode full path to handle escaped characters
-    return Uri.decodeFull(uri.path);
-  }
+  // String _decodePath(Uri uri) {
+  //   // Decode full path to handle escaped characters
+  //   return Uri.decodeFull(uri.path);
+  // }
 
   QueryResult<List> _executeSingleQuery(_QueryPart query, PageNode node) {
-    _log.fine("execute query: $query");
+    //_log.fine("execute query: $query");
     if (!['json', 'html'].contains(query.scheme)) {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
@@ -196,7 +205,7 @@ class QueryString {
     } else {
       result = QueryResult([node]);
     }
-    _log.fine("execute query result before transform: $result");
+    //_log.fine("execute query result before transform: $result");
     result = QueryResult(result.data
         .map((e) => _applyAllTransforms(node, e, query.transforms))
         .map((e) => e is Element
@@ -483,6 +492,22 @@ class QueryString {
 
     return result;
   }
+
+  @override
+  Iterable<PageNode> getCollection(PageNode node) {
+    return _executeQueries(node, false);
+  }
+
+  @override
+  Iterable getCollectionValue(PageNode node) {
+    return getCollection(node).map((e) => e.element ?? e.jsonData);
+  }
+
+  @override
+  String getValue(PageNode node, {String separator = '\n'}) {
+    final result = _executeQueries(node, true);
+    return result is List ? result.join(separator) : result.toString();
+  }
 }
 
 class _QueryPart {
@@ -507,7 +532,6 @@ class _QueryPart {
   }
 
   static _QueryPart parse(String queryString) {
-    _log.fine("parse queryString: $queryString");
     var scheme = 'html';
     if (queryString.startsWith('json:')) {
       scheme = 'json';
@@ -516,10 +540,8 @@ class _QueryPart {
       queryString = queryString.substring(5);
     }
 
-    _log.fine("parse queryString after scheme: $queryString");
     // Pre-encode selectors
     queryString = _encodeSelectorPart(queryString);
-    _log.fine("parse queryString after encode: $queryString");
 
     // Pre-encode transform values
     final transformRegex = RegExp(r'transform=([^&]+)');
@@ -532,7 +554,6 @@ class _QueryPart {
       queryString = '$scheme://dummy/$queryString';
     }
 
-    _log.fine("parse queryString before Uri.parse: $queryString");
     final uri = Uri.parse(queryString);
     final path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
 
