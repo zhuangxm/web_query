@@ -98,9 +98,7 @@ void main() {
     });
 
     test('multiple elements', () {
-      expect(
-          QueryString('html://.content/p/@text?operation=all')
-              .execute(testNode),
+      expect(QueryString('html://.content/*p/@text').execute(testNode),
           ['First paragraph', 'Second paragraph']);
     });
   });
@@ -140,6 +138,48 @@ void main() {
           QueryString('json://invalid?required=true||html://h1/@text')
               .execute(testNode),
           'Title');
+    });
+
+    test('first query is always required', () {
+      final query = QueryString('json:invalid/path||h1/@text');
+      final results = query.execute(testNode);
+      expect(
+          results, equals('Title')); // Second query executes after first fails
+    });
+
+    test('other queries are required by default', () {
+      final query = QueryString(
+          'json:meta/title||json:invalid/path||h1/@text?required=false');
+      final results = query.execute(testNode);
+      expect(
+          results, equals('JSON Title')); // Skip optional queries after success
+    });
+
+    test('explicit required query', () {
+      final query =
+          QueryString('json:meta/title||json:invalid/path?required=true');
+      final results = query.execute(testNode);
+      expect(results, equals('JSON Title')); // Execute required query
+    });
+
+    test('mixed required flags', () {
+      final query = QueryString(
+          'json:meta/title||json:invalid/path?required=true||h1/@text||json:bad/path');
+      final results = query.execute(testNode);
+      expect(results, equals(['JSON Title', 'Title']));
+    });
+
+    test('first query ignores required parameter', () {
+      expect(
+          QueryString('json:invalid/path?required=false||h1/@text')
+              .execute(testNode),
+          equals('Title') // Still executes second query
+          );
+      expect(
+          QueryString('json:invalid/path?required=true||h1/@text')
+              .execute(testNode),
+          equals('Title') // Parameter has no effect
+          );
     });
   });
 
@@ -304,38 +344,6 @@ void main() {
     });
   });
 
-  group('Query-specific Operations', () {
-    test('different operations per query', () {
-      final query = QueryString(
-          'html://.content/p/@text?op=all||html://.content/p/@text?op=one&required=true');
-      final results = query.execute(testNode);
-      expect(results,
-          equals(['First paragraph', 'Second paragraph', 'First paragraph']));
-    });
-
-    test('operations are independent', () {
-      final query = QueryString(
-          'html://.content/p/@text?op=all||html://.content/p/@text');
-      final results = query.execute(testNode);
-      expect(
-          results,
-          equals(
-            ['First paragraph', 'Second paragraph', 'First paragraph'],
-          ));
-    });
-
-    test('mixed operations with transforms', () {
-      final query = QueryString(
-          'html://.content/p/@text?op=all&transform=upper||html://.content/p/@text?transform=lower&required=true');
-      final results = query.execute(testNode);
-      expect(
-          results,
-          equals(
-            ['FIRST PARAGRAPH', 'SECOND PARAGRAPH', 'first paragraph'],
-          ));
-    });
-  });
-
   group('Query Parsing', () {
     test('simplified schemes', () {
       expect(QueryString('json:meta/title').execute(testNode), 'JSON Title');
@@ -404,6 +412,24 @@ void main() {
           QueryString('.container/@.container?transform=regexp:/true/yes/')
               .execute(testNode),
           'yes');
+    });
+  });
+
+  group('HTML Selector Prefixes', () {
+    test('querySelectorAll with * prefix', () {
+      expect(QueryString('.content/*p/@text').execute(testNode),
+          equals(['First paragraph', 'Second paragraph']));
+    });
+
+    test('querySelector by default', () {
+      expect(QueryString('.content/p/@text').execute(testNode),
+          equals('First paragraph'));
+    });
+
+    test('mixed prefixes in chain', () {
+      expect(
+          QueryString('.content/*p/@text||.content/p/@text').execute(testNode),
+          equals(['First paragraph', 'Second paragraph', 'First paragraph']));
     });
   });
 }

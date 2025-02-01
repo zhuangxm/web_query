@@ -67,8 +67,10 @@ final result = query.execute(pageData.getRootElement()); // "Page Title"
 ```dart
 // Basic selectors
 'div p'              // Find paragraphs in divs
-'.class'             // Find by class
-'#id'               // Find by id
+'*p'                // Find all paragraphs (force all)
+'p'                // Find first paragraph (force one)
+'.content/*div'     // All divs in content
+'.content/?div'     // First div in content
 
 // Navigation
 'div/^'             // Parent

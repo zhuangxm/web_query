@@ -1,16 +1,15 @@
 ## 0.1.0
 
-- Added new QueryString API for more powerful querying
+- Added new QueryString API with features:
   - Simplified scheme syntax (`json:` and `html:` prefixes)
-  - Default HTML scheme when no prefix provided
-  - Class name existence checking with `@.class`
-  - Wildcard class name matching (`@.prefix*`, `@.*suffix`)
-  - Transform operations (upper, lower, regexp)
-  - Query chaining with `||`
-  - Operation modes (`?op=all`)
+  - HTML selectors with `*` prefixes
+  - Default HTML scheme
+  - Class name checking with `@.class`
+  - Wildcard class name matching
+  - Transform operations
+  - Query chaining
   - Required/optional queries
-  - RegExp transforms with pattern matching and replacement
-  - JSON path improvements
+  - RegExp transforms
   - Better error handling
 
 ## 0.0.5

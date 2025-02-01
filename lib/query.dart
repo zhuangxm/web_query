@@ -21,6 +21,10 @@ import 'package:web_query/web_query.dart';
 /// - No scheme defaults to HTML (e.g., 'div/p' = 'html:div/p')
 ///
 /// HTML path syntax: `selector/navigation/selector/@attribute`
+/// Selector prefixes:
+/// - `*selector` - Force querySelectorAll (e.g., '*p' gets all paragraphs)
+/// - `selector` - Force querySelector (e.g., 'p' gets first paragraph)
+/// - No prefix uses operation parameter or defaults to querySelector
 ///
 /// Navigation operators:
 /// - `^` - Parent element
@@ -51,7 +55,6 @@ import 'package:web_query/web_query.dart';
 ///
 /// Query parameters:
 /// - `?transform=op1;op2;op3` - Multiple transforms separated by semicolons
-/// - `?op=all` - Return all matching elements
 /// - `?required=false` - Make query optional in chain
 /// - `?update=jsonString` - Merge JSON data (JSON only)
 ///
@@ -92,6 +95,14 @@ import 'package:web_query/web_query.dart';
 ///
 /// // Multiple operations
 /// 'p/@text?op=all&transform=upper'
+///
+/// // Force all matches
+/// '*p/@text'               // All paragraphs
+/// '.content/*div/p/@text'  // All paragraphs in all divs
+///
+/// // Force single match
+/// 'p/@text'              // First paragraph only
+/// '.content/p/@text'     // First paragraph in content
 /// ```
 
 final _log = Logger('QueryString');
@@ -118,7 +129,6 @@ class QueryResult<T> {
 
 class QueryString {
   final List<_QueryPart> _queries;
-  late final PageNode _node;
 
   QueryString(String query)
       : _queries = query.split('||').map((q) => _QueryPart.parse(q)).toList();
@@ -128,34 +138,33 @@ class QueryString {
   String get path => _queries.first.path;
   Map<String, List<String>> get transforms => _queries.first.transforms;
 
-  bool _isRequired(_QueryPart query) {
-    // If required parameter exists, use its value, otherwise default to true
+  bool _isRequired(_QueryPart query, bool isFirst) {
+    if (isFirst) {
+      return true; // First query is always required, ignore parameter
+    }
+    // Only check parameter for non-first queries
     if (query.parameters.containsKey('required')) {
       return query.parameters['required']?.first.toLowerCase() == 'true';
     }
-    return true;
+    return true; // Other queries are optional by default
   }
 
-  String _getOperation(_QueryPart query) =>
-      query.parameters['op']?.first ??
-      query.parameters['operation']?.first ??
-      'one';
-
   dynamic execute(PageNode node) {
-    _node = node;
     return _executeQueries(node);
   }
 
   dynamic _executeQueries(PageNode node) {
     var results = <QueryResult<List>>[];
 
-    for (var query in _queries) {
-      if (results.isNotEmpty && !_isRequired(query)) {
+    for (var i = 0; i < _queries.length; i++) {
+      var query = _queries[i];
+      // Skip if previous query succeeded and this isn't required
+      if (results.isNotEmpty && !_isRequired(query, false)) {
         continue;
       }
       var result = _executeSingleQuery(query, node);
-      // _log.fine("query: $query, result: $result");
       if (result.data.isNotEmpty) {
+        // Always include first query result
         results.add(result);
       }
     }
@@ -190,7 +199,7 @@ class QueryString {
       result = QueryResult([node]);
     }
     result = QueryResult(result.data
-        .map((e) => _applyAllTransforms(e, query.transforms))
+        .map((e) => _applyAllTransforms(node, e, query.transforms))
         .map((e) => e is Element
             ? PageNode(node.pageData, element: e)
             : e is Map
@@ -270,42 +279,29 @@ class QueryString {
     if (parts.isEmpty) return QueryResult([element]);
 
     final lastPart = parts.last;
-    final operation = _getOperation(query);
 
     // Handle attribute or HTML content query in last part
     if (lastPart.startsWith('@')) {
       parts.removeLast();
       var elements = _navigateElement(element, parts, query);
-
-      // _log.fine(
-      //     'elements: $elements, lastPart: $lastPart, operation: $operation');
-      return QueryResult(_extractHtmlValue(elements, lastPart, operation));
+      return QueryResult(_extractHtmlValue(elements, lastPart));
     }
 
-    if (parts.length > 1) {
-      var elements =
-          _navigateElement(element, parts.sublist(0, parts.length - 1), query);
-      if (elements.isEmpty) return QueryResult([]);
+    var elements =
+        _navigateElement(element, parts.sublist(0, parts.length - 1), query);
+    if (elements.isEmpty) return QueryResult([]);
 
-      // For last part, apply operation mode
-      if (operation == 'all') {
-        return QueryResult(
-            elements.expand((e) => e.querySelectorAll(lastPart)).toList());
-      } else {
-        var result = elements
-            .map((e) => e.querySelector(lastPart))
-            .where((e) => e != null)
-            .toList();
-        return QueryResult(result);
-      }
-    }
+    // Use prefix for last part
+    return QueryResult(
+        elements.expand((e) => _querySelectorWithPrefix(e, lastPart)).toList());
+  }
 
-    // Single part path
-    if (operation == 'all') {
-      return QueryResult(element.querySelectorAll(lastPart));
-    } else {
-      return QueryResult([element.querySelector(lastPart)]);
+  List<Element> _querySelectorWithPrefix(Element element, String selector) {
+    if (selector.startsWith('*')) {
+      return element.querySelectorAll(selector.substring(1)).toList();
     }
+    final result = element.querySelector(selector);
+    return result != null ? [result] : [];
   }
 
   List<Element> _navigateElement(
@@ -314,21 +310,15 @@ class QueryString {
 
     for (var part in parts) {
       if (currentElements.isEmpty) return [];
-
-      currentElements = currentElements.expand((elem) {
-        return _applySingleNavigation(elem, part, query);
-      }).toList();
+      currentElements = currentElements
+          .expand((elem) => _applySingleNavigation(elem, part))
+          .toList();
     }
 
     return currentElements;
   }
 
-  List<Element> _applySingleNavigation(
-      Element element, String part, _QueryPart query) {
-    final operation = _getOperation(query);
-    // _log.fine(
-    //     'Navigating from ${element.localName} to: $part (op: $operation)');
-
+  List<Element> _applySingleNavigation(Element element, String part) {
     if (part.isEmpty) return [element];
 
     switch (part) {
@@ -341,11 +331,7 @@ class QueryString {
       case '^':
         return element.parent != null ? [element.parent!] : [];
       case '>':
-        return operation == 'all'
-            ? element.children.toList()
-            : element.children.isEmpty
-                ? []
-                : [element.children.first];
+        return element.children.isEmpty ? [] : [element.children.first];
       case '+':
         return element.nextElementSibling != null
             ? [element.nextElementSibling!]
@@ -355,22 +341,12 @@ class QueryString {
             ? [element.previousElementSibling!]
             : [];
       default:
-        return operation == 'all'
-            ? element.querySelectorAll(part).toList()
-            : element.querySelector(part) != null
-                ? [element.querySelector(part)!]
-                : [];
+        return _querySelectorWithPrefix(element, part);
     }
   }
 
-  List _extractHtmlValue(
-      List<Element> elements, String accessor, String operation) {
-    if (elements.isEmpty) return [];
-
-    if (operation == 'all') {
-      return elements.map((e) => _extractSingleValue(e, accessor)).toList();
-    }
-    return [_extractSingleValue(elements.first, accessor)];
+  List _extractHtmlValue(List<Element> elements, String accessor) {
+    return elements.map((e) => _extractSingleValue(e, accessor)).toList();
   }
 
   String? _extractSingleValue(Element element, String accessor) {
@@ -402,14 +378,14 @@ class QueryString {
   }
 
   dynamic _applyAllTransforms(
-      dynamic value, Map<String, List<String>> transforms) {
+      PageNode node, dynamic value, Map<String, List<String>> transforms) {
     if (value == null) return null;
 
     return transforms.entries.fold(value, (result, entry) {
       switch (entry.key) {
         case 'transform':
-          return entry.value.fold(
-              result, (v, transform) => _applyTransformValues(v, transform));
+          return entry.value.fold(result,
+              (v, transform) => _applyTransformValues(node, v, transform));
         case 'update':
           return entry.value
               .fold(result, (v, update) => _applyUpdate(v, update));
@@ -419,19 +395,20 @@ class QueryString {
     });
   }
 
-  dynamic _applyTransformValues(dynamic value, String transform) {
+  dynamic _applyTransformValues(
+      PageNode node, dynamic value, String transform) {
     return (value is List)
-        ? value.map((v) => _applyTransform(v, transform))
-        : _applyTransform(value, transform);
+        ? value.map((v) => _applyTransform(node, v, transform))
+        : _applyTransform(node, value, transform);
   }
 
-  dynamic _applyTransform(dynamic value, String transform) {
+  dynamic _applyTransform(PageNode node, dynamic value, String transform) {
     // _log.fine("apply transform: $transform value $value");
     if (value == null) return null;
 
     if (transform.startsWith('regexp:')) {
       return _applyRegexpTransform(
-          value, Uri.decodeFull(transform.substring(7)));
+          node, value, Uri.decodeFull(transform.substring(7)));
     }
 
     switch (transform) {
@@ -457,7 +434,7 @@ class QueryString {
     }
   }
 
-  dynamic _applyRegexpTransform(dynamic value, String pattern) {
+  dynamic _applyRegexpTransform(PageNode node, dynamic value, String pattern) {
     if (value == null) return null;
 
     // Decode pattern after splitting to preserve escaped slashes
@@ -487,7 +464,8 @@ class QueryString {
       }
 
       // Replace mode
-      final replacement = _prepareReplacement(parts[1].replaceAll(r'\/', '/'));
+      final replacement =
+          _prepareReplacement(node, parts[1].replaceAll(r'\/', '/'));
       return valueStr.replaceAllMapped(regexp, (Match match) {
         var result = replacement;
         for (var i = 1; i <= match.groupCount; i++) {
@@ -501,13 +479,13 @@ class QueryString {
     }
   }
 
-  String _prepareReplacement(String replacement) {
+  String _prepareReplacement(PageNode node, String replacement) {
     var result = replacement;
 
     try {
-      final pageUri = Uri.parse(_node.pageData.url);
+      final pageUri = Uri.parse(node.pageData.url);
       // Replace pageUrl with full URL
-      result = result.replaceAll(r'${pageUrl}', _node.pageData.url);
+      result = result.replaceAll(r'${pageUrl}', node.pageData.url);
       // Replace rootUrl with origin (scheme + authority)
       result = result.replaceAll(r'${rootUrl}', pageUri.origin);
     } catch (e) {
@@ -516,8 +494,6 @@ class QueryString {
 
     return result;
   }
-
-  String get text => execute(_node)?.toString() ?? '';
 }
 
 class _QueryPart {
@@ -533,8 +509,7 @@ class _QueryPart {
   }
 
   static _QueryPart parse(String queryString) {
-    // Handle simplified schemes
-    var scheme = 'html'; // Default scheme
+    var scheme = 'html';
     if (queryString.startsWith('json:')) {
       scheme = 'json';
       queryString = queryString.substring(5);
