@@ -13,13 +13,14 @@ import 'package:web_query/web_query.dart';
 /// final result = query.execute(pageNode);
 /// ```
 ///
-/// Query string format: `scheme://path?parameters`
+/// Query string format: `scheme:path?parameters`
 ///
 /// Schemes:
-/// - `json://` - Query JSON data
-/// - `html://` - Query HTML elements
+/// - `json:` - Query JSON data (e.g., 'json:meta/title')
+/// - `html:` - Query HTML elements (e.g., 'html:div/p')
+/// - No scheme defaults to HTML (e.g., 'div/p' = 'html:div/p')
 ///
-/// HTML path syntax: `html://selector/navigation/selector/@attribute`
+/// HTML path syntax: `selector/navigation/selector/@attribute`
 ///
 /// Navigation operators:
 /// - `^` - Parent element
@@ -29,24 +30,29 @@ import 'package:web_query/web_query.dart';
 /// - `-` - Previous sibling
 ///
 /// Attribute accessors:
-/// - `@text` - Text content (default)
+/// - `@` - Text content (default)
+/// - `@text` - Text content
 /// - `@html` - Inner HTML
+/// - `@innerHtml` - Inner HTML
 /// - `@outerHtml` - Outer HTML
 /// - `@attr` - Custom attribute (e.g., @href, @src)
+/// - `@.class` - Check class existence (returns 'true'/'false')
+/// - `@.prefix*` - Match class with prefix
+/// - `@.*suffix` - Match class with suffix
+/// - `@.*part*` - Match class containing part
 ///
-/// JSON path syntax: `json://path/to/key/*` or `json://path/to/key/0`
-/// Required paths: Add `!` suffix to path to make it required even if previous path succeeded
-/// Example: `json://primary/path,required/path!,optional/path`
-///
-/// Array selectors:
-/// - `/0` - First item (or any numeric index)
-/// - `/*` - All items
-/// - Multiple paths use comma: `path1,path2`
+/// JSON path syntax:
+/// - Simple path: `json:meta/title`
+/// - Array index: `json:array/0`
+/// - All items: `json:array/*`
+/// - Range: `json:array/1-3`
+/// - Multiple paths: `json:meta/title,tags/*`
+/// - Required paths: Add `!` suffix (e.g., `json:path1,path2!`)
 ///
 /// Query parameters:
 /// - `?transform=op1;op2;op3` - Multiple transforms separated by semicolons
-/// - `?op=mode` - Operation mode (one/all)
-/// - `?required=true` - Makes query required in chain
+/// - `?op=all` - Return all matching elements
+/// - `?required=false` - Make query optional in chain
 /// - `?update=jsonString` - Merge JSON data (JSON only)
 ///
 /// Available transforms:
@@ -62,25 +68,30 @@ import 'package:web_query/web_query.dart';
 ///
 /// Multiple queries can be combined with `||`:
 /// ```dart
-/// 'json://meta/title||html://.fallback-title'
+/// // Chain with fallback
+/// 'json:meta/title||.fallback-title'
+///
+/// // Chain with required parts
+/// 'json:meta/title?required=false||content/body'
+///
+/// // Mixed schemes with transforms
+/// 'json:meta/title?transform=upper||div/p?transform=lower'
 /// ```
 ///
 /// Examples:
 /// ```dart
-/// // HTML navigation and attribute
-/// 'html://.article/>/h1/@text'
+/// // HTML query with class check
+/// '.article/@.featured'  // Check if class exists
+/// '.item/@.prefix*'      // Check class prefix
 ///
-/// // JSON with array and multiple paths
-/// 'json://users/0/name,email?transform=lower'
+/// // JSON with multiple paths
+/// 'json:meta/title,tags/*'
 ///
-/// // URL transformation
-/// 'html://img/@src?transform=regexp:/^\/(.+)/${rootUrl}$1/'
+/// // HTML with transform
+/// 'img/@src?transform=regexp:/^\/(.+)/${rootUrl}$1/'
 ///
-/// // Required chain with fallback
-/// 'json://content/body?required=true|html://.content/@html'
-///
-/// // Multiple transforms
-/// 'html://.date?transform=regexp:/(\d{2})\/(\d{2})/$2-$1/;transform=upper'
+/// // Multiple operations
+/// 'p/@text?op=all&transform=upper'
 /// ```
 
 final _log = Logger('QueryString');
@@ -374,9 +385,13 @@ class QueryString {
       return element.classes.contains(className).toString();
     }
     switch (accessor) {
+      case '@':
+        return element.text;
       case '@text':
         return element.text;
       case '@html':
+        return element.innerHtml;
+      case '@innerHtml':
         return element.innerHtml;
       case '@outerHtml':
         return element.outerHtml;
