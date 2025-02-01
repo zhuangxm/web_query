@@ -189,13 +189,14 @@ class QueryString {
 
     QueryResult<List> result;
     if (query.path.isNotEmpty) {
-      final decodedPath = _decodePath(Uri.parse(query.path));
+      //final decodedPath = _decodePath(Uri.parse(query.path));
       result = query.scheme == 'json'
-          ? _applyJsonPathFor(node.jsonData, decodedPath)
-          : _applyHtmlPathFor(node.element, decodedPath, query);
+          ? _applyJsonPathFor(node.jsonData, query.path)
+          : _applyHtmlPathFor(node.element, query);
     } else {
       result = QueryResult([node]);
     }
+    _log.fine("execute query result before transform: $result");
     result = QueryResult(result.data
         .map((e) => _applyAllTransforms(node, e, query.transforms))
         .map((e) => e is Element
@@ -269,11 +270,10 @@ class QueryString {
     return null;
   }
 
-  QueryResult<List> _applyHtmlPathFor(
-      Element? element, String path, _QueryPart query) {
+  QueryResult<List> _applyHtmlPathFor(Element? element, _QueryPart query) {
     if (element == null) return QueryResult([]);
 
-    final parts = path.split('/').where((p) => p.isNotEmpty).toList();
+    final parts = query.path.split('/').where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return QueryResult([element]);
 
     final lastPart = parts.last;
@@ -497,7 +497,17 @@ class _QueryPart {
     return Uri.encodeQueryComponent(value).replaceAll('+', '%2B');
   }
 
+  static String _encodeSelectorPart(String part) {
+    // Encode # in selectors but preserve in query params
+    if (part.contains('?')) {
+      final splitPart = part.split('?');
+      return '${splitPart[0].replaceAll('#', '%23')}?${splitPart[1]}';
+    }
+    return part.replaceAll('#', '%23');
+  }
+
   static _QueryPart parse(String queryString) {
+    _log.fine("parse queryString: $queryString");
     var scheme = 'html';
     if (queryString.startsWith('json:')) {
       scheme = 'json';
@@ -505,6 +515,11 @@ class _QueryPart {
     } else if (queryString.startsWith('html:')) {
       queryString = queryString.substring(5);
     }
+
+    _log.fine("parse queryString after scheme: $queryString");
+    // Pre-encode selectors
+    queryString = _encodeSelectorPart(queryString);
+    _log.fine("parse queryString after encode: $queryString");
 
     // Pre-encode transform values
     final transformRegex = RegExp(r'transform=([^&]+)');
@@ -517,8 +532,9 @@ class _QueryPart {
       queryString = '$scheme://dummy/$queryString';
     }
 
+    _log.fine("parse queryString before Uri.parse: $queryString");
     final uri = Uri.parse(queryString);
-    final path = uri.path.replaceFirst('/dummy/', '');
+    final path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
 
     final params = Map<String, List<String>>.from(uri.queryParameters.map(
       (key, value) => MapEntry(key, value.split(';')),
