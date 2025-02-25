@@ -402,8 +402,7 @@ class QueryString extends DataPicker {
     if (value == null) return null;
 
     if (transform.startsWith('regexp:')) {
-      return _applyRegexpTransform(
-          node, value, Uri.decodeFull(transform.substring(7)));
+      return _applyRegexpTransform(node, value, transform.substring(7));
     }
 
     switch (transform) {
@@ -445,7 +444,8 @@ class QueryString extends DataPicker {
     // _log.fine("apply regexp transform: $pattern $parts value $value");
 
     // Decode special characters in pattern
-    final regexPattern = Uri.decodeFull(parts[0].replaceAll(r'\/', '/'));
+    final regexPattern =
+        parts[0]; //Uri.decodeFull(parts[0].replaceAll(r'\/', '/'));
     // _log.fine("decoded pattern: $regexPattern");
 
     try {
@@ -469,7 +469,7 @@ class QueryString extends DataPicker {
         return result.replaceAll(r'$0', match.group(0) ?? '');
       });
     } catch (e) {
-      _log.warning('Failed to apply regexp: $e');
+      _log.warning('Failed to apply regexp: $regexPattern, error: $e');
       return value;
     }
   }
@@ -518,15 +518,13 @@ class _QueryPart {
 
   _QueryPart(this.scheme, this.path, this.parameters, this.transforms);
 
-  static String _encodeQueryComponent(String value) {
-    return Uri.encodeQueryComponent(value).replaceAll('+', '%2B');
-  }
-
   static String _encodeSelectorPart(String part) {
     // Encode # in selectors but preserve in query params
     if (part.contains('?')) {
-      final splitPart = part.split('?');
-      return '${splitPart[0].replaceAll('#', '%23')}?${splitPart[1]}';
+      final index = part.indexOf('?');
+      final firstPart = part.substring(0, index);
+      final secondPart = part.substring(index + 1);
+      return '${firstPart.replaceAll('#', '%23')}?$secondPart';
     }
     return part.replaceAll('#', '%23');
   }
@@ -546,7 +544,7 @@ class _QueryPart {
     // Pre-encode transform values
     final transformRegex = RegExp(r'transform=([^&]+)');
     queryString = queryString.replaceAllMapped(transformRegex, (match) {
-      return 'transform=${_encodeQueryComponent(match.group(1)!)}';
+      return 'transform=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
 
     // Add dummy host if needed
@@ -557,9 +555,8 @@ class _QueryPart {
     final uri = Uri.parse(queryString);
     final path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
 
-    final params = Map<String, List<String>>.from(uri.queryParameters.map(
-      (key, value) => MapEntry(key, value.split(';')),
-    ));
+    final params = Map<String, List<String>>.from(uri.queryParameters
+        .map((key, value) => MapEntry(key, value.split(RegExp('(?<!\\\\);')))));
 
     final transforms = <String, List<String>>{};
     if (params.containsKey('transform')) {
@@ -571,6 +568,7 @@ class _QueryPart {
       params.remove('update');
     }
 
+    //_log.fine("transform: $transforms");
     return _QueryPart(scheme, path, params, transforms);
   }
 

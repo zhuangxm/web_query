@@ -1,3 +1,7 @@
+## 0.1.1
+
+- Fixed bug with query paramters include ? and chinese.
+
 ## 0.1.0
 
 - Added new QueryString API with features:
