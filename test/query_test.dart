@@ -71,30 +71,30 @@ void main() {
     });
 
     test('multiple paths', () {
-      expect(QueryString('json://meta,content!/title').execute(testNode),
+      expect(QueryString('json://meta,content/title').execute(testNode),
           ['JSON Title', 'Content Title']);
-      expect(QueryString('json://meta/title,tags!/*').execute(testNode),
+      expect(QueryString('json://meta/title,tags/*').execute(testNode),
           ['JSON Title', 'one', 'two', 'three']);
     });
 
     test('multiple collection', () {
-      expect(QueryString('json://meta/tags,secondTags').execute(testNode),
+      expect(QueryString('json://meta/tags|secondTags').execute(testNode),
           ['one', 'two', 'three']);
-      expect(QueryString('json://meta/tags,secondTags!').execute(testNode),
+      expect(QueryString('json://meta/tags,secondTags').execute(testNode),
           ['one', 'two', 'three', 'four', 'five', 'six']);
       final result =
-          QueryString('json://meta/tags,secondTags!').getCollection(testNode);
+          QueryString('json://meta/tags,secondTags').getCollection(testNode);
       expect(result.map((e) => e.jsonData).toList(),
           ['one', 'two', 'three', 'four', 'five', 'six'],
           reason: 'collection');
     });
 
     test('required paths', () {
-      expect(QueryString('json://invalid,meta/title!').execute(testNode),
+      expect(QueryString('json://invalid|meta/title!').execute(testNode),
           'JSON Title');
       expect(QueryString('json://meta/title,invalid!').execute(testNode),
           'JSON Title');
-      expect(QueryString('json://meta/title!,tags/*!').execute(testNode),
+      expect(QueryString('json://meta/title!|tags/*!').execute(testNode),
           'JSON Title');
     });
   });
@@ -128,22 +128,21 @@ void main() {
   });
 
   group('Query Chaining', () {
-    test('required is default', () {
-      final query = QueryString('json://meta/title||json://content/title');
+    test('++ is requried', () {
+      final query = QueryString('json://meta/title++json://content/title');
       final results = query.execute(testNode);
       expect(results, equals(['JSON Title', 'Content Title']));
     });
 
-    test('explicit not required', () {
-      final query =
-          QueryString('json://meta/title?required=false||json://content/title');
+    test('|| is optional', () {
+      final query = QueryString('json://meta/title?||json://content/title');
       final results = query.execute(testNode);
-      expect(results, equals(['JSON Title', 'Content Title']));
+      expect(results, equals('JSON Title'));
     });
 
-    test('mixed required flags', () {
+    test('mixed ++ and ||', () {
       final query = QueryString(
-          'json://meta/title?required=false||json://content/title||json://invalid/path?required=false');
+          'json://meta/title++json://content/title||json://invalid/path');
       final results = query.execute(testNode);
       expect(results, equals(['JSON Title', 'Content Title']));
     });
@@ -188,7 +187,7 @@ void main() {
 
     test('mixed required flags', () {
       final query = QueryString(
-          'json:meta/title||json:invalid/path?required=true||h1/@text||json:bad/path');
+          'json:meta/title++json:invalid/path++h1/@text++json:bad/path');
       final results = query.execute(testNode);
       expect(results, equals(['JSON Title', 'Title']));
     });
@@ -340,7 +339,7 @@ void main() {
   group('Query-specific Transformations', () {
     test('applies transforms per query', () {
       final query = QueryString(
-          'json://meta/title?transform=upper||json://content/title?transform=lower');
+          'json://meta/title?transform=upper++json://content/title?transform=lower');
       final results = query.execute(testNode);
       expect(results, equals(['JSON TITLE', 'content title']));
     });
@@ -361,7 +360,7 @@ void main() {
 
     test('multiple transforms per query', () {
       final query = QueryString(
-          'json://meta/title?transform=upper;regexp:/JSON/TEST/||json://content/title?transform=lower;regexp:/content/test/&required=true');
+          'json://meta/title?transform=upper;regexp:/JSON/TEST/++json://content/title?transform=lower;regexp:/content/test/');
       final results = query.execute(testNode);
       expect(results, equals(['TEST TITLE', 'test title']));
     });
@@ -375,11 +374,9 @@ void main() {
     });
 
     test('mixed schemes and paths', () {
-      expect(QueryString('json:meta/title||.content/p/@text').execute(testNode),
+      expect(QueryString('json:meta/title++.content/p/@text').execute(testNode),
           ['JSON Title', 'First paragraph']);
-      expect(
-          QueryString('meta/title?required=false||json:content/body')
-              .execute(testNode),
+      expect(QueryString('meta/title++json:content/body').execute(testNode),
           'Main content');
     });
   });
@@ -414,9 +411,10 @@ void main() {
           reason: 'suffix');
       expect(QueryString('div/@.*middle*').execute(node), 'true',
           reason: 'middle');
-      expect(QueryString('div/@.pre*fix').execute(node), 'false',
+      expect(QueryString('div/@.pre*fix').execute(node), null,
           reason: 'pre*fix');
-      expect(QueryString('div/@.*xyz*').execute(node), 'false');
+      expect(QueryString('div/@.*xyz*|.prefix*').execute(node), 'true');
+      expect(QueryString('div/@.prefix*|.*xyz*').execute(node), 'true');
     });
 
     test('multiple class checks', () {
@@ -451,7 +449,7 @@ void main() {
 
     test('mixed prefixes in chain', () {
       expect(
-          QueryString('.content/*p/@text||.content/p/@text').execute(testNode),
+          QueryString('.content/*p/@text++.content/p/@text').execute(testNode),
           equals(['First paragraph', 'Second paragraph', 'First paragraph']));
     });
   });
@@ -490,7 +488,7 @@ void main() {
     });
 
     test('mixed query types', () {
-      final query = QueryString('json:meta/title||.content/*p/@');
+      final query = QueryString('json:meta/title++.content/*p/@');
       expect(query.getValue(testNode),
           equals('JSON Title\nFirst paragraph\nSecond paragraph'));
       expect(query.getCollection(testNode).map((n) => n.jsonData).toList(),

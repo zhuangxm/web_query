@@ -11,6 +11,29 @@ export 'src/page_data.dart';
 
 final _log = Logger('QueryString');
 
+extension SplitKeepSeparator on String {
+  List<String> splitKeep(Pattern pattern) {
+    if (isEmpty) return [];
+
+    final result = <String>[];
+    var start = 0;
+
+    for (var match in pattern.allMatches(this)) {
+      if (start != match.start) {
+        result.add(substring(start, match.start));
+      }
+      result.add(substring(match.start, match.end));
+      start = match.end;
+    }
+
+    if (start < length) {
+      result.add(substring(start));
+    }
+
+    return result;
+  }
+}
+
 //result of query, the result is list, it will not be confused with the list of result
 class QueryResult {
   final List data;
@@ -37,6 +60,7 @@ class QueryResult {
 /// final query = QueryString(queryString);
 /// final result = query.execute(pageNode);
 /// ```
+/// Querys can be combined with `||` and `++`: `query1||query2` or `query1++query2`
 ///
 /// Query string format: `scheme:path?parameters`
 ///
@@ -58,17 +82,19 @@ class QueryResult {
 /// - `+` - Next sibling
 /// - `-` - Previous sibling
 ///
-/// Attribute accessors:
+/// Attribute accessors: (only support | connection)
 /// - `@` - Text content (default)
 /// - `@text` - Text content
 /// - `@html` - Inner HTML
 /// - `@innerHtml` - Inner HTML
 /// - `@outerHtml` - Outer HTML
 /// - `@attr` - Custom attribute (e.g., @href, @src)
-/// - `@.class` - Check class existence (returns 'true'/'false')
+/// - `@.class` - Check class existence (returns 'true'/null)
 /// - `@.prefix*` - Match class with prefix
 /// - `@.*suffix` - Match class with suffix
 /// - `@.*part*` - Match class containing part
+/// - `@.class1|.class2` - Check if class1 or class2 exists
+/// - `@src|data-src` - src or data-src
 ///
 /// JSON path syntax:
 /// - Simple path: `json:meta/title`
@@ -76,12 +102,9 @@ class QueryResult {
 /// - All items: `json:array/*`
 /// - Range: `json:array/1-3`
 /// - Multiple paths: `json:meta/title,tags/*`
-/// - Required paths: Add `!` suffix (e.g., `json:path1,path2!`)
 ///
 /// Query parameters:
 /// - `?transform=op1;op2;op3` - Multiple transforms separated by semicolons
-/// - `?required=false` - Make query optional in chain
-/// - `?update=jsonString` - Merge JSON data (JSON only)
 ///
 /// Available transforms:
 /// - `upper` - Uppercase
@@ -100,7 +123,7 @@ class QueryResult {
 /// 'json:meta/title||.fallback-title'
 ///
 /// // Chain with required parts
-/// 'json:meta/title?required=false||content/body'
+/// 'json:meta/title++content/body'
 ///
 /// // Mixed schemes with transforms
 /// 'json:meta/title?transform=upper||div/p?transform=lower'
@@ -118,8 +141,8 @@ class QueryResult {
 /// // HTML with transform
 /// 'img/@src?transform=regexp:/^\/(.+)/${rootUrl}$1/'
 ///
-/// // Multiple operations
-/// 'p/@text?op=all&transform=upper'
+/// // Multiple transform
+/// '*p/@text?&transform=upper;lowercase'
 ///
 /// // Force all matches
 /// '*p/@text'               // All paragraphs
@@ -136,18 +159,22 @@ class QueryString extends DataPicker {
 
   QueryString(this.query, {this.newProtocol = true})
       : _queries = (query ?? "")
-            .split('||')
+            .splitKeep(RegExp(r'(\|\||\+\+)'))
             .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
-            .map((q) => _QueryPart.parse(q))
+            .fold((true, <_QueryPart>[]), (result, v) {
+              final (required, l) = result;
+              if (v == '||') {
+                return (false, l);
+              } else if (v == '++') {
+                return (true, l);
+              } else {
+                l.add(_QueryPart.parse(v, required: required));
+                return (required, l);
+              }
+            })
+            .$2
             .toList();
-
-  bool _isRequired(_QueryPart query) {
-    if (query.parameters.containsKey('required')) {
-      return query.parameters['required']?.first.toLowerCase() == 'true';
-    }
-    return true; // Other queries are optional by default
-  }
 
   dynamic execute(PageNode node, {bool simplify = true}) {
     if (newProtocol) {
@@ -166,7 +193,7 @@ class QueryString extends DataPicker {
     for (var i = 0; i < _queries.length; i++) {
       var query = _queries[i];
       // Skip if previous query succeeded and this isn't required
-      if (result.data.isNotEmpty && !_isRequired(query)) {
+      if (result.data.isNotEmpty && !query.isRequired()) {
         continue;
       }
       var result_ = _executeSingleQuery(query, node);
@@ -229,16 +256,28 @@ class QueryString extends DataPicker {
 
   QueryResult _resolveJsonMultiPath(
       dynamic data, String path, Iterable<String> rest) {
-    final paths = path.split(',').map((p) => p.trim()).toList();
+    final paths =
+        path.splitKeep(RegExp(r'(\||,)')).map((p) => p.trim()).toList();
+    //_log.fine("json paths: $paths");
     var result = QueryResult([]);
+    var isRequired = true;
     for (var p in paths) {
-      final isRequired = p.endsWith('!');
-      final cleanPath = isRequired ? p.substring(0, p.length - 1) : p;
+      if (p == '|' || p == '&' || p == ',') {
+        isRequired = p != '|';
+        continue;
+      }
+
+      //for compatible with old protocol
+      if (p.endsWith("!")) {
+        p = p.substring(0, p.length - 1);
+        isRequired = true;
+      }
+      //final cleanPath = isRequired ? p.substring(0, p.length - 1) : p;
       if (result.data.isNotEmpty && !isRequired) {
         continue;
       }
 
-      final result_ = _resolveJsonPath(data, cleanPath);
+      final result_ = _resolveJsonPath(data, p);
 
       result = result.combine(
           rest.isEmpty ? QueryResult(result_) : _walkJsonPath(result_, rest));
@@ -341,34 +380,43 @@ class QueryString extends DataPicker {
   }
 
   List _extractHtmlValue(List<Element> elements, String accessor) {
-    return elements.map((e) => _extractSingleValue(e, accessor)).toList();
+    return elements.map((e) => _extractAttributeValue(e, accessor)).toList();
   }
 
-  String? _extractSingleValue(Element element, String accessor) {
-    if (accessor.startsWith('@.')) {
-      final className = accessor.substring(2);
+  String? _extractAttributeValue(Element element, String accessor) {
+    accessor = accessor.substring(1);
+    final attributes = accessor.split(RegExp(r'(\|)'));
+    return attributes
+        .map((attribute) => _extractSingleAttributeValue(element, attribute))
+        .where((e) => e?.isNotEmpty ?? false)
+        .firstOrNull;
+  }
+
+  String? _extractSingleAttributeValue(Element element, String attribute) {
+    if (attribute.startsWith('.')) {
+      final className = attribute.substring(1);
       if (className.contains('*')) {
         final pattern = '^${className.replaceAll('*', '.*')}\$';
-        return element.classes
-            .any((e) => RegExp(pattern).hasMatch(e))
-            .toString();
+        final hasClasses =
+            element.classes.any((e) => RegExp(pattern).hasMatch(e));
+        return hasClasses ? "true" : null;
       }
       return element.classes.contains(className).toString();
     }
-    switch (accessor) {
-      case '@':
+    switch (attribute) {
+      case '':
         return element.text.trim();
-      case '@text':
+      case 'text':
         return element.text.trim();
-      case '@html':
+      case 'html':
         return element.innerHtml;
-      case '@innerHtml':
+      case 'innerHtml':
         return element.innerHtml;
-      case '@outerHtml':
+      case 'outerHtml':
         return element.outerHtml;
       default:
         // Handle normal attributes (@href, @src, etc)
-        return element.attributes[accessor.substring(1)];
+        return element.attributes[attribute];
     }
   }
 
@@ -513,10 +561,12 @@ class QueryString extends DataPicker {
 class _QueryPart {
   final String scheme;
   final String path;
+  final bool required;
   final Map<String, List<String>> parameters;
   final Map<String, List<String>> transforms;
 
-  _QueryPart(this.scheme, this.path, this.parameters, this.transforms);
+  _QueryPart(
+      this.scheme, this.path, this.parameters, this.transforms, this.required);
 
   static String _encodeSelectorPart(String part) {
     // Encode # in selectors but preserve in query params
@@ -529,7 +579,7 @@ class _QueryPart {
     return part.replaceAll('#', '%23');
   }
 
-  static _QueryPart parse(String queryString) {
+  static _QueryPart parse(String queryString, {required bool required}) {
     var scheme = 'html';
     if (queryString.startsWith('json:')) {
       scheme = 'json';
@@ -569,11 +619,15 @@ class _QueryPart {
     }
 
     //_log.fine("transform: $transforms");
-    return _QueryPart(scheme, path, params, transforms);
+    return _QueryPart(scheme, path, params, transforms, required);
+  }
+
+  bool isRequired() {
+    return required;
   }
 
   @override
   String toString() {
-    return "_QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms)";
+    return "_QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms, requried: $required)";
   }
 }

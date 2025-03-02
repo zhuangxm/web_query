@@ -18,7 +18,7 @@ Add to your pubspec.yaml:
 
 ```yaml
 dependencies:
-  web_query: ^0.1.1
+  web_query: ^0.2.0
 ```
 
 ## Usage
@@ -110,8 +110,8 @@ final result = query.execute(pageData.getRootElement()); // "Page Title"
 
 ```dart
 // Operations
-'div/p?op=all'                    // Get all matches
-'div/p?required=false'            // Optional in chain
+'*div/p'                    // Get all matches
+'div/p'                     // Get one match
 
 // Transforms
 '@text?transform=upper'           // Uppercase
@@ -126,7 +126,7 @@ final result = query.execute(pageData.getRootElement()); // "Page Title"
 'json:meta/title||h1/@text'
 
 // Multiple required
-'json:meta/title||json:content/body'
+'json:meta/title++json:content/body'
 
 // Mixed with transforms
 'json:title?transform=upper||div/p?transform=lower'
@@ -144,6 +144,7 @@ final result = query.execute(pageData.getRootElement()); // "Page Title"
 'div/@.prefix*'          // Matches prefix-anything
 'div/@.*suffix'          // Matches anything-suffix
 'div/@.*part*'          // Matches containing part
+'div/@.class1|.class2'  //has class1 or class2
 ```
 
 ### RegExp Transforms
