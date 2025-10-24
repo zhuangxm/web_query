@@ -401,7 +401,7 @@ class QueryString extends DataPicker {
             element.classes.any((e) => RegExp(pattern).hasMatch(e));
         return hasClasses ? "true" : null;
       }
-      return element.classes.contains(className).toString();
+      return element.classes.contains(className) ? 'true' : null;
     }
     switch (attribute) {
       case '':
