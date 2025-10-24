@@ -1,14 +1,18 @@
+## 0.2.5
+
+- adding `*+` and `*-` to navigate siblings.
+
 ## 0.2.0
 
 - breaking change:
   - after || part mean optional (previous version is required)
-  - , default is requried. (previous version is optional)
-  - adding ++ & mean requried.
-  - adding | meain optional.
+  - , default is required. (previous version is optional)
+  - adding ++ & mean required.
+  - adding | mean optional.
   - remove required?= parameter
   - remove !suffix in json path part.
-- adding ++ and || separator to query satatement. (part after ++ mean required)
-- adding | and , to seperator multi path (part after | mean optional , after `,` mean required)
+- adding ++ and || separator to query statement. (part after ++ mean required)
+- adding | and , to separate multi path (part after | mean optional , after `,` mean required)
 - adding | to attribute to support multi attributes (part after | mean optional )
 
 ## 0.1.1

@@ -396,7 +396,7 @@ void main() {
   group('HTML Class Resolution', () {
     test('checks class existence', () {
       expect(QueryString('.container/@.container').execute(testNode), 'true');
-      expect(QueryString('.content/@.missing').execute(testNode), 'false');
+      expect(QueryString('.content/@.missing').execute(testNode), null);
     });
 
     test('wildcard class match', () {
@@ -424,8 +424,8 @@ void main() {
 
       expect(QueryString('div/@.one').execute(node), 'true', reason: 'one');
       expect(QueryString('div/@.two').execute(node), 'true', reason: 'two');
-      expect(QueryString('div/@.tw').execute(node), 'false', reason: 'tw');
-      expect(QueryString('div/@.four').execute(node), 'false', reason: 'four');
+      expect(QueryString('div/@.tw').execute(node), null, reason: 'tw');
+      expect(QueryString('div/@.four').execute(node), null, reason: 'four');
     });
 
     test('class check with transforms', () {

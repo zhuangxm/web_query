@@ -18,7 +18,7 @@ Add to your pubspec.yaml:
 
 ```yaml
 dependencies:
-  web_query: ^0.2.0
+  web_query: ^0.2.5
 ```
 
 ## Usage
@@ -80,7 +80,10 @@ final result = query.execute(pageData.getRootElement()); // "Page Title"
 // Navigation
 'div/^'             // Parent
 'div/>'             // First child
-'div/+>'            // Next sibling
+'div/+'            // Next sibling
+'div/*+'           // Next siblings
+'div/-'             // Previous sibling
+'div/*-'            // Previous siblings
 'div/-'             // Previous sibling
 
 // Attributes

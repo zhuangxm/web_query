@@ -80,7 +80,9 @@ class QueryResult {
 /// - `^^` - Root element
 /// - `>` - First child
 /// - `+` - Next sibling
+/// - `*+` - Next siblings
 /// - `-` - Previous sibling
+/// - `*-` - Previous siblings
 ///
 /// Attribute accessors: (only support | connection)
 /// - `@` - Text content (default)
@@ -370,10 +372,26 @@ class QueryString extends DataPicker {
         return element.nextElementSibling != null
             ? [element.nextElementSibling!]
             : [];
+      case '*+':
+        var results = <Element>[];
+        var next = element.nextElementSibling;
+        while (next != null) {
+          results.add(next);
+          next = next.nextElementSibling;
+        }
+        return results;
       case '-':
         return element.previousElementSibling != null
             ? [element.previousElementSibling!]
             : [];
+      case '*-':
+        var results = <Element>[];
+        var prev = element.previousElementSibling;
+        while (prev != null) {
+          results.add(prev);
+          prev = prev.previousElementSibling;
+        }
+        return results;
       default:
         return _querySelectorWithPrefix(element, part);
     }
