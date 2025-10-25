@@ -157,9 +157,7 @@ void main() {
     });
 
     test('required chains', () {
-      expect(
-          QueryString('json://invalid?required=true||html://h1/@text')
-              .execute(testNode),
+      expect(QueryString('json://invalid||html://h1/@text').execute(testNode),
           'Title');
     });
 
@@ -171,16 +169,14 @@ void main() {
     });
 
     test('other queries are required by default', () {
-      final query = QueryString(
-          'json:meta/title||json:invalid/path||h1/@text?required=false');
+      final query = QueryString('json:meta/title||json:invalid/path||h1/@text');
       final results = query.execute(testNode);
       expect(
           results, equals('JSON Title')); // Skip optional queries after success
     });
 
     test('explicit required query', () {
-      final query =
-          QueryString('json:meta/title||json:invalid/path?required=true');
+      final query = QueryString('json:meta/title++json:invalid/path');
       final results = query.execute(testNode);
       expect(results, equals('JSON Title')); // Execute required query
     });
@@ -193,9 +189,7 @@ void main() {
     });
 
     test('first query ignores required parameter', () {
-      expect(
-          QueryString('json:invalid/path?required=false||h1/@text')
-              .execute(testNode),
+      expect(QueryString('json:invalid/path||h1/@text').execute(testNode),
           equals('Title') // Still executes second query
           );
       expect(
@@ -346,7 +340,7 @@ void main() {
 
     test('transforms are independent', () {
       final query = QueryString(
-          'json://meta/title?transform=upper||json://meta/title?transform=lower&required=false');
+          'json://meta/title?transform=upper||json://meta/title?transform=lower');
       final results = query.execute(testNode);
       expect(results, equals('JSON TITLE'));
     });
@@ -423,6 +417,8 @@ void main() {
       final node = pageData.getRootElement();
 
       expect(QueryString('div/@.one').execute(node), 'true', reason: 'one');
+      expect(QueryString('div@.one').execute(node), 'true',
+          reason: 'one (/ before @ is optional)');
       expect(QueryString('div/@.two').execute(node), 'true', reason: 'two');
       expect(QueryString('div/@.tw').execute(node), null, reason: 'tw');
       expect(QueryString('div/@.four').execute(node), null, reason: 'four');

@@ -18,7 +18,7 @@ Add to your pubspec.yaml:
 
 ```yaml
 dependencies:
-  web_query: ^0.2.5
+  web_query: ^0.2.6
 ```
 
 ## Usage

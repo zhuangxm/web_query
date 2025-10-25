@@ -320,7 +320,10 @@ class QueryString extends DataPicker {
   QueryResult _applyHtmlPathFor(Element? element, _QueryPart query) {
     if (element == null) return QueryResult([]);
 
-    final parts = query.path.split('/').where((p) => p.isNotEmpty).toList();
+    final parts = query.path
+        .split(RegExp(r'(/|(?=@))'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return QueryResult([element]);
 
     final lastPart = parts.last;
@@ -610,7 +613,7 @@ class _QueryPart {
     queryString = _encodeSelectorPart(queryString);
 
     // Pre-encode transform values
-    final transformRegex = RegExp(r'transform=([^&]+)');
+    final transformRegex = RegExp(r'transform=(.*)');
     queryString = queryString.replaceAllMapped(transformRegex, (match) {
       return 'transform=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
@@ -646,6 +649,6 @@ class _QueryPart {
 
   @override
   String toString() {
-    return "_QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms, requried: $required)";
+    return "_QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms, required: $required)";
   }
 }

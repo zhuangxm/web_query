@@ -1,3 +1,8 @@
+## 0.2.6
+
+- make / before @ optional
+- fix transform regexp cannot have & bug.
+
 ## 0.2.5
 
 - adding `*+` and `*-` to navigate siblings.
