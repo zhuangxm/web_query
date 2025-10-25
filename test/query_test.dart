@@ -412,12 +412,12 @@ void main() {
     });
 
     test('multiple class checks', () {
-      const html = '<div class="one two three">Content</div>';
+      const html = '<div class="one two three", id="classes">Content</div>';
       final pageData = PageData('https://example.com', html);
       final node = pageData.getRootElement();
 
       expect(QueryString('div/@.one').execute(node), 'true', reason: 'one');
-      expect(QueryString('div@.one').execute(node), 'true',
+      expect(QueryString('div#classes@.one').execute(node), 'true',
           reason: 'one (/ before @ is optional)');
       expect(QueryString('div/@.two').execute(node), 'true', reason: 'two');
       expect(QueryString('div/@.tw').execute(node), null, reason: 'tw');
