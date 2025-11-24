@@ -1,3 +1,7 @@
+## 0.2.7
+
+- adding filter transform to filter result.
+
 ## 0.2.6
 
 - make / before @ optional

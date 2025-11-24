@@ -114,6 +114,12 @@ class QueryResult {
 /// - `regexp:/pattern/` - Return matched text or null
 /// - `regexp:/pattern/replacement/` - Replace matches with replacement
 ///
+/// Available filters:
+/// - `filter=word` - Must contain "word"
+/// - `filter=!word` - Must NOT contain "word"
+/// - `filter=a b` - Must contain "a" AND "b"
+/// - `filter=a\ b` - Must contain "a b" (escaped space)
+///
 /// RegExp variables:
 /// - `${pageUrl}` - Current page URL
 /// - `${rootUrl}` - Page origin (scheme + authority)
@@ -453,6 +459,9 @@ class QueryString extends DataPicker {
         case 'update':
           return entry.value
               .fold(result, (v, update) => _applyUpdate(v, update));
+        case 'filter':
+          return entry.value
+              .fold(result, (v, filter) => _applyFilter(v, filter));
         default:
           return result;
       }
@@ -497,6 +506,47 @@ class QueryString extends DataPicker {
     }
   }
 
+  dynamic _applyFilter(dynamic value, String filter) {
+    if (value == null) return null;
+
+    // Split filter string by space, respecting escaped spaces
+    final parts = filter
+        .splitKeep(RegExp(r'(?<!\\) '))
+        .map((e) => e
+            .trim()
+            .replaceAll(r'\ ', ' ')
+            .replaceAll(r'\;', ';')
+            .replaceAll(r'\&', '&'))
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return value;
+
+    bool check(dynamic v) {
+      final str = v.toString();
+      for (var part in parts) {
+        var isExclude = false;
+        if (part.startsWith('!')) {
+          isExclude = true;
+          part = part.substring(1);
+        }
+
+        if (isExclude) {
+          if (str.contains(part)) return false;
+        } else {
+          if (!str.contains(part)) return false;
+        }
+      }
+      return true;
+    }
+
+    if (value is List) {
+      return value.where(check).toList();
+    } else {
+      return check(value) ? value : null;
+    }
+  }
+
   dynamic _applyRegexpTransform(PageNode node, dynamic value, String pattern) {
     if (value == null) return null;
 
@@ -528,8 +578,8 @@ class QueryString extends DataPicker {
       }
 
       // Replace mode
-      final replacement =
-          _prepareReplacement(node, parts[1].replaceAll(r'\/', '/'));
+      final replacement = _prepareReplacement(
+          node, parts[1].replaceAll(r'\/', '/').replaceAll(r'\;', ';'));
       return valueStr.replaceAllMapped(regexp, (Match match) {
         var result = replacement;
         for (var i = 1; i <= match.groupCount; i++) {
@@ -600,6 +650,77 @@ class _QueryPart {
     return part.replaceAll('#', '%23');
   }
 
+  static List<String> _splitTransforms(String value) {
+    final rawParts = value.split(RegExp('(?<!\\\\);'));
+    final result = <String>[];
+    String? pending;
+
+    for (var part in rawParts) {
+      if (pending != null) {
+        pending = '$pending;$part';
+      } else {
+        if (part.trim().startsWith('regexp:')) {
+          pending = part;
+        } else {
+          result.add(part);
+          continue;
+        }
+      }
+
+      if (_isCompleteRegexp(pending)) {
+        result.add(pending);
+        pending = null;
+      }
+    }
+
+    if (pending != null) {
+      result.add(pending);
+    }
+
+    return result;
+  }
+
+  static bool _isCompleteRegexp(String value) {
+    if (!value.startsWith('regexp:')) return true;
+
+    // Find first slash
+    final firstSlash = value.indexOf('/');
+    if (firstSlash == -1) return false;
+
+    // Find second slash (end of pattern)
+    final secondSlash = _findNextSlash(value, firstSlash + 1);
+    if (secondSlash == -1) return false;
+
+    // If string ends here, it's valid (pattern only)
+    if (secondSlash == value.length - 1) return true;
+
+    // Find third slash (end of replacement)
+    final thirdSlash = _findNextSlash(value, secondSlash + 1);
+    if (thirdSlash == -1) return false;
+
+    // If string ends here, it's valid (replacement)
+    if (thirdSlash == value.length - 1) return true;
+
+    // If there is more content, it might be invalid or we might have split too early?
+    // Actually if we have 3 slashes and more content, it's likely garbage or we split inside a replacement that has slashes?
+    // But replacement slashes should be escaped if they are delimiters.
+    // Wait, if user writes `regexp:/a/b/c`, `b` is replacement.
+    // If user writes `regexp:/a/b;c/`, we split at `;`.
+    // `regexp:/a/b` -> 2 slashes. Ends with `b`. Not complete.
+    // Join `c/` -> `regexp:/a/b;c/` -> 3 slashes. Ends with `/`. Complete.
+
+    return false;
+  }
+
+  static int _findNextSlash(String value, int start) {
+    for (var i = start; i < value.length; i++) {
+      if (value[i] == '/' && (i == 0 || value[i - 1] != '\\')) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
   static _QueryPart parse(String queryString, {required bool required}) {
     var scheme = 'html';
     if (queryString.startsWith('json:')) {
@@ -613,9 +734,24 @@ class _QueryPart {
     queryString = _encodeSelectorPart(queryString);
 
     // Pre-encode transform values
-    final transformRegex = RegExp(r'transform=(.*)');
+    final transformRegex =
+        RegExp(r'transform=((?:(?!&(?:filter|update|transform)=).)*)');
     queryString = queryString.replaceAllMapped(transformRegex, (match) {
       return 'transform=${Uri.encodeQueryComponent(match.group(1)!)}';
+    });
+
+    // Pre-encode filter values
+    final filterRegex =
+        RegExp(r'filter=((?:(?!&(?:filter|update|transform)=).)*)');
+    queryString = queryString.replaceAllMapped(filterRegex, (match) {
+      return 'filter=${Uri.encodeQueryComponent(match.group(1)!)}';
+    });
+
+    // Pre-encode update values
+    final updateRegex =
+        RegExp(r'update=((?:(?!&(?:filter|update|transform)=).)*)');
+    queryString = queryString.replaceAllMapped(updateRegex, (match) {
+      return 'update=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
 
     // Add dummy host if needed
@@ -626,8 +762,14 @@ class _QueryPart {
     final uri = Uri.parse(queryString);
     final path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
 
-    final params = Map<String, List<String>>.from(uri.queryParameters
-        .map((key, value) => MapEntry(key, value.split(RegExp('(?<!\\\\);')))));
+    final params = <String, List<String>>{};
+    uri.queryParameters.forEach((key, value) {
+      if (key == 'transform') {
+        params[key] = _splitTransforms(value);
+      } else {
+        params[key] = value.split(RegExp('(?<!\\\\);'));
+      }
+    });
 
     final transforms = <String, List<String>>{};
     if (params.containsKey('transform')) {
@@ -637,6 +779,10 @@ class _QueryPart {
     if (params.containsKey('update')) {
       transforms['update'] = params['update']!;
       params.remove('update');
+    }
+    if (params.containsKey('filter')) {
+      transforms['filter'] = params['filter']!;
+      params.remove('filter');
     }
 
     //_log.fine("transform: $transforms");

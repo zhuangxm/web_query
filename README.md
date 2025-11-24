@@ -120,6 +120,13 @@ final result = query.execute(pageData.getRootElement()); // "Page Title"
 '@text?transform=upper'           // Uppercase
 '@text?transform=lower'           // Lowercase
 '@src?transform=regexp:/pat/rep/' // RegExp replace
+
+// Filters
+'@text?filter=word'               // Must contain "word"
+'@text?filter=!word'              // Must NOT contain "word"
+'@text?filter=a b'                // Must contain "a" AND "b"
+'@text?filter=a !b'               // Must contain "a" AND NOT "b"
+'@text?filter=a\ b'               // Must contain "a b" (escaped space)
 ```
 
 ### Chaining Queries
