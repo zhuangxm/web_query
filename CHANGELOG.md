@@ -1,6 +1,41 @@
+## 0.2.8
+
+### What's New
+
+- **Filter Transform**: Added powerful `filter` parameter to filter query results
+  - Include filters: `filter=word` matches items containing "word"
+  - Exclude filters: `filter=!word` excludes items containing "word"
+  - Combined filters: `filter=a !b` includes "a" AND excludes "b"
+  - Escaped characters: Support for `\ ` (space), `\;` (semicolon), `\&` (ampersand)
+  
+- **Enhanced Parameter Parsing**:
+  - Smart handling of `&` in `transform`, `filter`, and `update` parameters
+  - Intelligent semicolon splitting for `regexp` transforms (preserves `;` within `/pattern/replacement/`)
+  - Proper escaping/unescaping for special characters
+
+- **Examples**:
+  ```dart
+  // Filter by inclusion
+  '*li/@text?filter=Apple'
+  
+  // Filter by exclusion
+  '*li/@text?filter=!Banana'
+  
+  // Combined filters
+  '*li/@text?filter=fruit !bad'
+  
+  // With escaped characters
+  '*li/@text?filter=Date\ Fruit'  // Matches "Date Fruit"
+  '*li/@text?filter=\&'            // Matches items with "&"
+  
+  // Mixed with transforms
+  '*li/@text?transform=regexp:/Fig/Big/&filter=&'
+  ```
+
 ## 0.2.7
 
 - adding filter transform to filter result.
+
 
 ## 0.2.6
 
