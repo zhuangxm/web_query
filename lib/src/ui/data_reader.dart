@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -11,6 +10,7 @@ import 'package:web_query/query.dart';
 
 import 'html_tree_view.dart';
 import 'html_utils.dart';
+import 'json_tree_view.dart';
 
 enum DataViewMode { html, json }
 
@@ -36,7 +36,6 @@ class DataQueryWidget extends HookWidget {
     final viewMode = useState(DataViewMode.html);
     final queryController = useTextEditingController();
     final filterResults = useState<List<Map<String, dynamic>>>([]);
-    final scrollController = useScrollController();
 
     // Memoize filtered HTML to avoid re-parsing on every rebuild
     final filteredHtml = useMemoized(
@@ -207,20 +206,8 @@ class DataQueryWidget extends HookWidget {
                             ? HtmlTreeView(
                                 document: parsedDocument,
                               )
-                            : SizedBox.expand(
-                                child: SingleChildScrollView(
-                                  controller: scrollController,
-                                  padding: const EdgeInsets.all(12),
-                                  child: SelectableText(
-                                    _getDisplayContent(
-                                        pageData!, viewMode.value),
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 14,
-                                      color: Colors.greenAccent,
-                                    ),
-                                  ),
-                                ),
+                            : JsonTreeView(
+                                json: pageData!.jsonData,
                               ),
                   ),
                 ),
@@ -376,24 +363,5 @@ class DataQueryWidget extends HookWidget {
         ],
       ),
     );
-  }
-
-  String _getDisplayContent(PageData pageData, DataViewMode mode) {
-    if (mode == DataViewMode.html) {
-      return filterHtml(pageData.html);
-    } else {
-      // JSON mode
-      if (pageData.jsonData != null) {
-        try {
-          final jsonObj = pageData.jsonData;
-          const encoder = JsonEncoder.withIndent('  ');
-          return encoder.convert(jsonObj);
-        } catch (e) {
-          return 'Error parsing JSON: $e\n\n${pageData.jsonData}';
-        }
-      } else {
-        return '// No JSON data available\n// This page contains HTML content only';
-      }
-    }
   }
 }

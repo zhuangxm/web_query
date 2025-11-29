@@ -4,7 +4,7 @@ import 'package:web_query/src/page_data.dart';
 void main() {
   group('PageData.auto', () {
     test('parses HTML content', () {
-      final html = '<html><body><h1>Hello</h1></body></html>';
+      const html = '<html><body><h1>Hello</h1></body></html>';
       final pageData = PageData.auto('http://example.com', html);
 
       expect(pageData.document, isNotNull);
