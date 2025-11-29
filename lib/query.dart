@@ -229,7 +229,7 @@ class QueryString extends DataPicker {
 
   QueryResult _executeSingleQuery(_QueryPart query, PageNode node) {
     //_log.fine("execute query: $query");
-    if (!['json', 'html'].contains(query.scheme)) {
+    if (!['json', 'html', 'url'].contains(query.scheme)) {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
 
@@ -238,9 +238,13 @@ class QueryString extends DataPicker {
       //final decodedPath = _decodePath(Uri.parse(query.path));
       result = query.scheme == 'json'
           ? _applyJsonPathFor(node.jsonData, query.path)
-          : _applyHtmlPathFor(node.element, query);
+          : query.scheme == 'url'
+              ? _applyUrlPathFor(node, query)
+              : _applyHtmlPathFor(node.element, query);
     } else {
-      result = QueryResult(node);
+      result = query.scheme == 'url'
+          ? _applyUrlPathFor(node, query)
+          : QueryResult(node);
     }
     //_log.fine("execute query result before transform: $result");
     result = QueryResult(result.data
@@ -321,6 +325,94 @@ class QueryString extends DataPicker {
       return data[path];
     }
     return null;
+  }
+
+  QueryResult _applyUrlPathFor(PageNode node, _QueryPart query) {
+    var url = node.pageData.url;
+
+    // Apply modifications from parameters
+    if (query.parameters.isNotEmpty) {
+      url = _modifyUrl(url, query.parameters);
+    }
+
+    if (query.path.isEmpty) {
+      return QueryResult(url);
+    }
+
+    final uri = Uri.parse(url);
+
+    if (query.path == 'scheme') return QueryResult(uri.scheme);
+    if (query.path == 'host') return QueryResult(uri.host);
+    if (query.path == 'port') return QueryResult(uri.port.toString());
+    if (query.path == 'path') return QueryResult(uri.path);
+    if (query.path == 'query') return QueryResult(uri.query);
+    if (query.path == 'fragment') return QueryResult(uri.fragment);
+    if (query.path == 'userInfo') return QueryResult(uri.userInfo);
+    if (query.path == 'origin') return QueryResult(uri.origin);
+
+    if (query.path == 'queryParameters')
+      return QueryResult(uri.queryParameters);
+
+    if (query.path.startsWith('queryParameters/')) {
+      final key = query.path.substring('queryParameters/'.length);
+      return QueryResult(uri.queryParameters[key]);
+    }
+
+    return QueryResult(null);
+  }
+
+  String _modifyUrl(String url, Map<String, List<String>> parameters) {
+    var uri = Uri.parse(url);
+    var newQueryParameters =
+        Map<String, List<String>>.from(uri.queryParametersAll);
+
+    String? newScheme;
+    String? newHost;
+    int? newPort;
+    String? newPath;
+    String? newFragment;
+    String? newUserInfo;
+
+    parameters.forEach((key, values) {
+      final value = values.isNotEmpty ? values.last : '';
+
+      if (key == '_scheme') {
+        newScheme = value;
+      } else if (key == '_host') {
+        newHost = value;
+      } else if (key == '_port') {
+        newPort = int.tryParse(value);
+      } else if (key == '_path') {
+        newPath = value;
+      } else if (key == '_fragment') {
+        newFragment = value;
+      } else if (key == '_userInfo') {
+        newUserInfo = value;
+      } else if (key == '_remove') {
+        // Handle removal
+        for (var v in values) {
+          for (var k in v.split(',')) {
+            newQueryParameters.remove(k.trim());
+          }
+        }
+      } else {
+        // Treat as query parameter update
+        newQueryParameters[key] = values;
+      }
+    });
+
+    return uri
+        .replace(
+          scheme: newScheme,
+          host: newHost,
+          port: newPort,
+          path: newPath,
+          fragment: newFragment,
+          userInfo: newUserInfo,
+          queryParameters:
+              newQueryParameters.isEmpty ? null : newQueryParameters,
+        )
+        .toString();
   }
 
   QueryResult _applyHtmlPathFor(Element? element, _QueryPart query) {
@@ -728,6 +820,9 @@ class _QueryPart {
       queryString = queryString.substring(5);
     } else if (queryString.startsWith('html:')) {
       queryString = queryString.substring(5);
+    } else if (queryString.startsWith('url:')) {
+      scheme = 'url';
+      queryString = queryString.substring(4);
     }
 
     // Pre-encode selectors
@@ -760,7 +855,10 @@ class _QueryPart {
     }
 
     final uri = Uri.parse(queryString);
-    final path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
+    var path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
+    if (path.startsWith('/') && scheme == 'url') {
+      path = path.substring(1);
+    }
 
     final params = <String, List<String>>{};
     uri.queryParameters.forEach((key, value) {
