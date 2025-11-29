@@ -5,13 +5,18 @@ import 'src/json_query.dart';
 import 'src/page_data.dart';
 import 'src/query_part.dart';
 import 'src/query_result.dart';
-import 'src/selector.dart';
 import 'src/transforms.dart';
 import 'src/url_query.dart';
 
 export 'src/page_data.dart';
 export 'src/query_part.dart';
 export 'src/query_result.dart';
+
+abstract class DataPicker {
+  Iterable<PageNode> getCollection(PageNode node);
+  Iterable getCollectionValue(PageNode node);
+  String getValue(PageNode node, {String separator = "\n"});
+}
 
 /// Query string syntax for extracting data from HTML and JSON.
 ///
