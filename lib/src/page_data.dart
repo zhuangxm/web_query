@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:html/dom.dart';
+import 'package:xml2json/xml2json.dart';
 
 /// class represent the data from web request returns.
 class PageData {
@@ -31,6 +32,31 @@ class PageData {
             ? getJsonDataById(defaultJsonId)
             : null;
     //debugPrint("page data ${document?.documentElement}");
+  }
+
+  //try to parse the content into document and jsonData, auto distinguish html xml and json, xml will be transformed into json
+  PageData.auto(this.url, content) {
+    if (content is String) {
+      content = content.trim();
+      if (content.startsWith("<?xml")) {
+        final transfomer = Xml2Json();
+        transfomer.parse(content);
+        content = transfomer.toParkerWithAttrs();
+      }
+      try {
+        document = Document.html(content);
+      } catch (e) {
+        document = Document.html("<html></html>");
+      }
+      try {
+        jsonData = jsonDecode(content);
+      } catch (e) {
+        jsonData = null;
+      }
+    } else {
+      document = Document.html("<html></html>");
+      jsonData = content;
+    }
   }
 
   ///get jsonData from [document] that has id named [id]
