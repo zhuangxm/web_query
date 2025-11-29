@@ -668,9 +668,6 @@ class QueryString extends DataPicker {
     try {
       final regexp = RegExp(regexPattern, multiLine: true);
       final valueStr = value.toString();
-      print("Value: '$valueStr'");
-      print("Pattern: '$regexPattern'");
-      print("Match: ${regexp.hasMatch(valueStr)}");
 
       // Pattern-only mode (empty replacement part)
       if (parts[1].isEmpty) {
