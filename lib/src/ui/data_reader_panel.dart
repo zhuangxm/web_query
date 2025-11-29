@@ -382,7 +382,7 @@ class DataQueryWidget extends HookWidget {
       // JSON mode
       if (pageData.jsonData != null) {
         try {
-          final jsonObj = jsonDecode(pageData.jsonData!);
+          final jsonObj = pageData.jsonData;
           const encoder = JsonEncoder.withIndent('  ');
           return encoder.convert(jsonObj);
         } catch (e) {
