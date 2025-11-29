@@ -1,6 +1,6 @@
 name: web_query
 description: "A Flutter package that using simple syntax to parse html and json data."
-version: 0.2.8
+version: 0.3.0
 homepage: https://github.com/zhuangxm/web_query.git
 repository: https://github.com/zhuangxm/web_query.git
 
