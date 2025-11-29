@@ -655,13 +655,22 @@ class QueryString extends DataPicker {
     // _log.fine("apply regexp transform: $pattern $parts value $value");
 
     // Decode special characters in pattern
-    final regexPattern =
+    var regexPattern =
         parts[0]; //Uri.decodeFull(parts[0].replaceAll(r'\/', '/'));
+
+    // Handle \ALL keyword
+    if (regexPattern.contains(r'\ALL')) {
+      regexPattern = regexPattern.replaceAll(r'\ALL', r'^[\s\S]*$');
+    }
+
     // _log.fine("decoded pattern: $regexPattern");
 
     try {
-      final regexp = RegExp(regexPattern);
+      final regexp = RegExp(regexPattern, multiLine: true);
       final valueStr = value.toString();
+      print("Value: '$valueStr'");
+      print("Pattern: '$regexPattern'");
+      print("Match: ${regexp.hasMatch(valueStr)}");
 
       // Pattern-only mode (empty replacement part)
       if (parts[1].isEmpty) {
