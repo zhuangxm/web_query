@@ -1,3 +1,46 @@
+## 0.3.0
+
+### What's New
+
+- **URL Scheme**: Added `url:` scheme for querying and modifying URLs
+  - Query URL components: `url:host`, `url:path`, `url:query`, `url:fragment`, etc.
+  - Query parameters: `url:queryParameters/key`
+  - Modify URLs: `url:?page=2`, `url:?_host=new.com`
+  - Supports all transforms including `regexp`
+
+- **Simplified Regexp Syntax**: Added `?regexp=` as shorthand for `?transform=regexp:`
+  - `?regexp=/pattern/` - Pattern-only mode
+  - `?regexp=/pattern/replacement/` - Replace mode
+  - Multiple regexp params are chained: `?regexp=/a/b/&regexp=/c/d/`
+
+- **Multiline Regexp Support**:
+  - `multiLine: true` enabled by default for all regexp operations
+  - `\ALL` keyword matches entire content (expands to `^[\s\S]*$`)
+  - Better handling of newlines in patterns
+
+- **DataQueryWidget UI Component**:
+  - Interactive HTML tree view with collapsible nodes
+  - Real-time QueryString filtering
+  - Switch between HTML and JSON views
+  - Visual query results panel
+  - Example project demonstrating usage
+
+- **Examples**:
+  ```dart
+  // URL queries
+  'url:host'                    // Get hostname
+  'url:?page=2'                 // Modify query param
+  'url:?regexp=/https/http/'    // Transform URL
+  
+  // Simplified regexp
+  'h1@text?regexp=/Title/Header/'
+  '*li@text?regexp=/\ALL/Replaced/'
+  
+  // Multiline matching
+  'div@text?regexp=/^Line 2/Matched/'  // Match start of line
+  'div@text?regexp=/\ALL/Replaced/'    // Match all content
+  ```
+
 ## 0.2.8
 
 ### What's New

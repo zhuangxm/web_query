@@ -56,7 +56,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.2.8
+  web_query: ^0.3.0
 ```
 
 Then run:
@@ -140,12 +140,13 @@ final firstPost = QueryString('json:user/posts/0/title').getValue(node);
 
 ### Query Schemes
 
-Queries can target either HTML or JSON data:
+Queries can target HTML, JSON, or URL data:
 
 | Scheme | Description | Example |
 |--------|-------------|---------|
 | `html:` | Query HTML elements (optional, default) | `html:div/p/@text` |
 | `json:` | Query JSON data | `json:user/name` |
+| `url:` | Query and modify URLs | `url:host`, `url:?page=2` |
 | (none) | Defaults to HTML | `div/p/@text` |
 
 ### HTML Selectors
@@ -301,6 +302,21 @@ Transforms modify the extracted data:
 '@text?transform=upper;lower'              // Apply multiple
 ```
 
+#### Simplified Regexp Syntax
+
+Use `?regexp=` as a shorthand for `?transform=regexp:`:
+
+```dart
+// Pattern matching
+'@text?regexp=/\d+/'                       // Extract numbers
+
+// Pattern replacement
+'@text?regexp=/old/new/'                   // Replace text
+
+// Multiple regexp transforms
+'@text?regexp=/a/b/&regexp=/c/d/'          // Chain multiple
+```
+
 #### RegExp Transforms
 
 ```dart
@@ -313,8 +329,18 @@ Transforms modify the extracted data:
 '@href?transform=regexp:/^\/(.+)/${rootUrl}$1/'  // Make absolute URL
 
 // With capture groups
-'@text?transform=regexp:/(\d{4})-(\d{2})-(\d{2})/$2\/$3\/$1/'  // Reformat date
+'@text?transform=regexp:/(\\d{4})-(\\d{2})-(\\d{2})/$2\\/$3\\/$1/'  // Reformat date
+
+// Multiline support (enabled by default)
+'div@text?regexp=/^Line 2/Matched/'       // Match start of line
+'div@text?regexp=/\\ALL/Replaced/'         // Match entire content
 ```
+
+#### Special RegExp Keywords
+
+| Keyword | Description | Expands To |
+|---------|-------------|------------|
+| `\ALL` | Match entire content | `^[\s\S]*$` |
 
 #### RegExp Variables
 
@@ -503,6 +529,192 @@ final pdfLinks = QueryString(
 final prices = QueryString(
   '*span.price/@text?transform=regexp:/\$(\d+\.\d{2})/$1/'
 ).getCollectionValue(node);
+```
+
+### URL Queries
+
+Query and modify URLs using the `url:` scheme:
+
+#### Query URL Components
+
+Extract individual parts of the current page URL:
+
+```dart
+// Given URL: https://example.com:8080/path/to/resource?page=1&sort=desc#section1
+
+final fullUrl = QueryString('url:').getValue(node);
+// "https://example.com:8080/path/to/resource?page=1&sort=desc#section1"
+
+final scheme = QueryString('url:scheme').getValue(node);
+// "https"
+
+final host = QueryString('url:host').getValue(node);
+// "example.com"
+
+final port = QueryString('url:port').getValue(node);
+// "8080"
+
+final path = QueryString('url:path').getValue(node);
+// "/path/to/resource"
+
+final query = QueryString('url:query').getValue(node);
+// "page=1&sort=desc"
+
+final fragment = QueryString('url:fragment').getValue(node);
+// "section1"
+
+final userInfo = QueryString('url:userInfo').getValue(node);
+// "" (if present in URL)
+
+final origin = QueryString('url:origin').getValue(node);
+// "https://example.com:8080"
+```
+
+#### Query URL Parameters
+
+Access query parameters as a map or individual values:
+
+```dart
+// Get all query parameters as a map
+final params = QueryString('url:queryParameters').execute(node);
+// {"page": "1", "sort": "desc"}
+
+// Get specific parameter
+final page = QueryString('url:queryParameters/page').getValue(node);
+// "1"
+
+final sort = QueryString('url:queryParameters/sort').getValue(node);
+// "desc"
+
+// Non-existent parameter returns null
+final missing = QueryString('url:queryParameters/missing').getValue(node);
+// null
+```
+
+#### Modify URLs
+
+Modify URL components using query parameters:
+
+##### Update Query Parameters
+
+```dart
+// Add new query parameter
+final newUrl = QueryString('url:?newParam=value').getValue(node);
+// "https://example.com:8080/path/to/resource?page=1&sort=desc&newParam=value#section1"
+
+// Update existing parameter
+final updated = QueryString('url:?page=2').getValue(node);
+// "https://example.com:8080/path/to/resource?page=2&sort=desc#section1"
+
+// Multiple parameter updates
+final multi = QueryString('url:?page=2&status=active').getValue(node);
+// "https://example.com:8080/path/to/resource?page=2&sort=desc&status=active#section1"
+
+// Remove parameters
+final removed = QueryString('url:?_remove=sort').getValue(node);
+// "https://example.com:8080/path/to/resource?page=1#section1"
+
+// Remove multiple parameters
+final removedMulti = QueryString('url:?_remove=page,sort').getValue(node);
+// "https://example.com:8080/path/to/resource#section1"
+```
+
+##### Replace URL Components
+
+Use special `_` prefixed parameters to replace URL components:
+
+```dart
+// Change scheme
+final httpUrl = QueryString('url:?_scheme=http').getValue(node);
+// "http://example.com:8080/path/to/resource?page=1&sort=desc#section1"
+
+// Change host
+final newHost = QueryString('url:?_host=new.com').getValue(node);
+// "https://new.com:8080/path/to/resource?page=1&sort=desc#section1"
+
+// Change port
+final newPort = QueryString('url:?_port=9000').getValue(node);
+// "https://example.com:9000/path/to/resource?page=1&sort=desc#section1"
+
+// Change path
+final newPath = QueryString('url:?_path=/new/path').getValue(node);
+// "https://example.com:8080/new/path?page=1&sort=desc#section1"
+
+// Change fragment
+final newFragment = QueryString('url:?_fragment=section2').getValue(node);
+// "https://example.com:8080/path/to/resource?page=1&sort=desc#section2"
+
+// Change userInfo
+final withAuth = QueryString('url:?_userInfo=user:pass').getValue(node);
+// "https://user:pass@example.com:8080/path/to/resource?page=1&sort=desc#section1"
+
+// Combine multiple changes
+final combined = QueryString('url:?_scheme=http&_host=api.example.com&page=2').getValue(node);
+// "http://api.example.com:8080/path/to/resource?page=2&sort=desc#section1"
+```
+
+#### URL with Transforms
+
+Apply transforms to URLs or extracted components:
+
+```dart
+// Extract domain using regexp
+final domain = QueryString('url:?regexp=/https:\\/\\/([^\\/]+).*/$1/').getValue(node);
+// "example.com:8080"
+
+// Extract just hostname
+final hostname = QueryString('url:host?regexp=/([^:]+).*/$1/').getValue(node);
+// "example.com"
+
+// Transform scheme
+final transformed = QueryString('url:scheme?transform=upper').getValue(node);
+// "HTTPS"
+
+// Modify and extract
+final modifiedHost = QueryString('url:host?_host=changed.com').getValue(node);
+// "changed.com"
+
+// Complex transformation
+final apiUrl = QueryString('url:?_scheme=https&_host=api.example.com&_path=/v1/users&regexp=/(.*)\\?.*/$1/').getValue(node);
+// "https://api.example.com/v1/users"
+```
+
+#### Practical URL Examples
+
+```dart
+// Build API endpoint from current URL
+final apiEndpoint = QueryString('url:origin?regexp=/(.*)/$1\\/api\\/v1/').getValue(node);
+// "https://example.com:8080/api/v1"
+
+// Get base URL without query params
+final baseUrl = QueryString('url:?regexp=/([^?]+).*/\$1/').getValue(node);
+// "https://example.com:8080/path/to/resource"
+
+// Change to different environment
+final stagingUrl = QueryString('url:?_host=staging.example.com&_scheme=https').getValue(node);
+```
+
+### DataQueryWidget
+
+Visual component for interactive data querying:
+
+```dart
+import 'package:web_query/ui.dart';
+
+DataQueryWidget(
+  pageData: pageData,
+  title: 'Query Data',
+  onToggleExpand: () => setState(() => expanded = !expanded),
+)
+```
+
+Features:
+- Interactive HTML tree view
+- Real-time QueryString filtering
+- Switch between HTML and JSON views
+- Visual query results panel
+
+See the [example project](example/) for a complete demonstration.
 ```
 
 ## API Reference
