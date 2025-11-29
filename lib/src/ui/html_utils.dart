@@ -1,20 +1,14 @@
 import 'package:html/dom.dart' as html;
 import 'package:html/parser.dart' as html_parser;
 
-String filterHtmlOnly(String html) {
+String filterHtmlOnly(String html, {List<String>? unwantedSelectors}) {
   try {
     final document = html_parser.parse(html);
 
     // Remove unwanted elements
-    final unwantedSelectors = [
-      'script',
-      'style',
-      'iframe',
-      'noscript',
-      'link',
-      'meta'
-    ];
-    for (final selector in unwantedSelectors) {
+    final selectors = unwantedSelectors ??
+        ['script', 'style', 'iframe', 'noscript', 'link', 'meta'];
+    for (final selector in selectors) {
       document.querySelectorAll(selector).forEach((element) {
         element.remove();
       });
@@ -26,8 +20,8 @@ String filterHtmlOnly(String html) {
   }
 }
 
-String filterHtml(String html) {
-  return formatHtml(filterHtmlOnly(html));
+String filterHtml(String html, {List<String>? unwantedSelectors}) {
+  return formatHtml(filterHtmlOnly(html, unwantedSelectors: unwantedSelectors));
 }
 
 String formatHtml(String html) {
