@@ -122,10 +122,9 @@ export 'src/query_result.dart';
 /// ```
 class QueryString extends DataPicker {
   final List<QueryPart> _queries;
-  final bool newProtocol;
   final String? query;
 
-  QueryString(this.query, {this.newProtocol = true})
+  QueryString(this.query)
       : _queries = (query ?? "")
             .splitKeep(RegExp(r'(\|\||\+\+)'))
             .map((e) => e.trim())
@@ -145,14 +144,7 @@ class QueryString extends DataPicker {
             .toList();
 
   dynamic execute(PageNode node, {bool simplify = true}) {
-    if (newProtocol) {
-      return _executeQueries(node, simplify);
-    } else {
-      final selectors = Selectors(query);
-      return !simplify
-          ? selectors.getCollection(node)
-          : selectors.getValue(node);
-    }
+    return _executeQueries(node, simplify);
   }
 
   dynamic _executeQueries(PageNode node, bool simplify) {
