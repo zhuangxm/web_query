@@ -830,23 +830,30 @@ class _QueryPart {
 
     // Pre-encode transform values
     final transformRegex =
-        RegExp(r'transform=((?:(?!&(?:filter|update|transform)=).)*)');
+        RegExp(r'transform=((?:(?!&(?:filter|update|transform|regexp)=).)*)');
     queryString = queryString.replaceAllMapped(transformRegex, (match) {
       return 'transform=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
 
     // Pre-encode filter values
     final filterRegex =
-        RegExp(r'filter=((?:(?!&(?:filter|update|transform)=).)*)');
+        RegExp(r'filter=((?:(?!&(?:filter|update|transform|regexp)=).)*)');
     queryString = queryString.replaceAllMapped(filterRegex, (match) {
       return 'filter=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
 
     // Pre-encode update values
     final updateRegex =
-        RegExp(r'update=((?:(?!&(?:filter|update|transform)=).)*)');
+        RegExp(r'update=((?:(?!&(?:filter|update|transform|regexp)=).)*)');
     queryString = queryString.replaceAllMapped(updateRegex, (match) {
       return 'update=${Uri.encodeQueryComponent(match.group(1)!)}';
+    });
+
+    // Pre-encode regexp values
+    final regexpRegex =
+        RegExp(r'regexp=((?:(?!&(?:filter|update|transform|regexp)=).)*)');
+    queryString = queryString.replaceAllMapped(regexpRegex, (match) {
+      return 'regexp=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
 
     // Add dummy host if needed
@@ -861,11 +868,22 @@ class _QueryPart {
     }
 
     final params = <String, List<String>>{};
-    uri.queryParameters.forEach((key, value) {
-      if (key == 'transform') {
-        params[key] = _splitTransforms(value);
-      } else {
-        params[key] = value.split(RegExp('(?<!\\\\);'));
+    uri.queryParametersAll.forEach((key, values) {
+      for (var value in values) {
+        if (key == 'transform') {
+          if (params.containsKey(key)) {
+            params[key]!.addAll(_splitTransforms(value));
+          } else {
+            params[key] = _splitTransforms(value);
+          }
+        } else {
+          final parts = value.split(RegExp('(?<!\\\\);'));
+          if (params.containsKey(key)) {
+            params[key]!.addAll(parts);
+          } else {
+            params[key] = parts;
+          }
+        }
       }
     });
 
@@ -873,6 +891,15 @@ class _QueryPart {
     if (params.containsKey('transform')) {
       transforms['transform'] = params['transform']!;
       params.remove('transform');
+    }
+    if (params.containsKey('regexp')) {
+      final regexps = params['regexp']!.map((e) => 'regexp:$e').toList();
+      if (transforms.containsKey('transform')) {
+        transforms['transform']!.addAll(regexps);
+      } else {
+        transforms['transform'] = regexps;
+      }
+      params.remove('regexp');
     }
     if (params.containsKey('update')) {
       transforms['update'] = params['update']!;
