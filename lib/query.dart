@@ -176,7 +176,9 @@ class QueryString extends DataPicker {
                 ? item
                 : item is Element
                     ? PageNode(node.pageData, element: item)
-                    : PageNode(node.pageData, jsonData: item);
+                    : (item is String && query.scheme == 'html')
+                        ? PageData(node.pageData.url, item).getRootElement()
+                        : PageNode(node.pageData, jsonData: item);
             final subResult = _executeSingleQuery(query, itemNode, variables);
             pipedData.addAll(subResult.data);
           }

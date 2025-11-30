@@ -17,7 +17,6 @@
   - **Query Piping**: Added `>>` operator to chain queries (output of one becomes input of next)
   - **New Selectors**:
     - `@keys`: Extract keys from JSON objects
-    - `$`: Select current value
   - **Variables & Templates**:
     - Save results with `?save=varName`
     - Use variables with `${varName}` in paths, regex, and templates

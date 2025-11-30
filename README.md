@@ -405,10 +405,15 @@ Pass the output of one query as the input to the next:
   'json:users/@keys' // Returns ["alice", "bob"]
   ```
 
-- **`$`**: Select current value (useful in chains or JSON paths)
-  ```dart
-  'json:items/*/$' // Get list of items
-  ```
+#### Nested Parsing (HTML in JSON)
+
+Use `>>` to parse HTML strings embedded in JSON:
+
+```dart
+// JSON: { "comments": ["<div class='user'>Alice</div>", ...] }
+'json:comments/* >> html:.user/@text'
+// Result: ["Alice", ...]
+```
 
 #### Variables and Templates
 

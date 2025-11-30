@@ -197,7 +197,11 @@ class HomePage extends HookWidget {
     "metadata": {
       "version": "1.0",
       "author": "John Doe"
-    }
+    },
+    "comments": [
+        "<div class='user'>Alice</div>",
+        "<div class='user'>Bob</div>"
+    ]
   }
   </script>
   <script>

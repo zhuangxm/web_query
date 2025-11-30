@@ -87,22 +87,6 @@ void main() {
       expect(tags, ['a', 'b', 'c', 'd']);
     });
 
-    test('current value selector (\$)', () {
-      const jsonData = '''
-      {
-        "items": [1, 2, 3]
-      }
-      ''';
-
-      final pageData =
-          PageData('https://example.com', '<html></html>', jsonData: jsonData);
-      final node = pageData.getRootElement();
-
-      // Use $ to get current value in chain
-      final items = QueryString(r'json:items/*/$').execute(node);
-      expect(items, [1, 2, 3]);
-    });
-
     test('combined advanced features', () {
       const html = '''
       <html>
