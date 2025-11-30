@@ -14,7 +14,7 @@ void main() {
       const html = '''
       <html>
         <script>
-          var COOKIE_DOMAIN = 'pornhub.com';
+          var COOKIE_DOMAIN = 'example.com';
           var userId = 123;
           var config = {api: 'test'};
         </script>
@@ -32,7 +32,7 @@ void main() {
       expect(autoResult, isA<Map>());
       final map = autoResult as Map;
       expect(map.containsKey('COOKIE_DOMAIN'), true);
-      expect(map['COOKIE_DOMAIN'], 'pornhub.com');
+      expect(map['COOKIE_DOMAIN'], 'example.com');
       expect(map.containsKey('userId'), true);
       expect(map['userId'], 123);
     });
@@ -41,7 +41,7 @@ void main() {
       const html = '''
       <html>
         <script>
-          var COOKIE_DOMAIN = 'pornhub.com';
+          var COOKIE_DOMAIN = 'example.com';
         </script>
       </html>
       ''';
@@ -52,7 +52,7 @@ void main() {
       final result = QueryString('script/@text?transform=jseval:COOKIE_DOMAIN')
           .execute(node);
 
-      expect(result, 'pornhub.com');
+      expect(result, 'example.com');
     });
 
     test('let/const are NOT auto-detected', () {

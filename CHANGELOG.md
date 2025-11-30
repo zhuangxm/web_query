@@ -1,3 +1,63 @@
+## 0.6.0
+
+### New Features
+
+- **JSON Path Wildcards**: Added wildcard support for JSON paths in queries
+  - `json:flashvars_*` - Match all keys starting with "flashvars_"
+  - `json:*_config` - Match all keys ending with "_config"
+  - Works with piping: `jseval >> json:flashvars_*`
+  - Returns Map with all matching keys
+
+- **jseval Wildcard Matching**: JavaScript variable extraction now supports wildcards
+  - `transform=jseval:flashvars_*` - Extract all matching variables
+  - `transform=jseval:*_data,*_config` - Multiple patterns
+  - Same wildcard syntax as JSON transform
+
+- **Improved jseval Scope Handling**:
+  - Fixed: `jseval:varName` now works correctly (uses indirect eval for global scope)
+  - Auto-detect properly captures `var` declarations
+  - Both specific and auto-detect modes use global scope execution
+
+### Improvements
+
+- **Better Error Handling**: jseval returns `null` instead of `{}` on errors
+  - Consistent with other transforms
+  - Empty results also return `null`
+  - Easier to detect failures
+
+- **Enhanced Browser Globals**: Added more mock objects
+  - `window.addEventListener` and `removeEventListener`
+  - `screen` object with width/height properties
+  - `atob`/`btoa` for base64 encoding
+
+- **Crash Prevention**: Improved JavaScript runtime stability
+  - No runtime disposal (prevents crashes)
+  - Smart variable clearing between queries
+  - Runtime health checks
+  - Better error recovery
+
+### Bug Fixes
+
+- Fixed: `jseval:varName` now extracts variables correctly (was returning null)
+- Fixed: Empty variable results now return `null` instead of empty map
+- Fixed: Runtime crashes from disposal operations
+
+### Examples
+
+```dart
+// JSON path wildcards
+'script/@text?transform=jseval >> json:flashvars_*'
+// Returns: {flashvars_123: {...}, flashvars_456: {...}}
+
+// jseval wildcards
+'script/@text?transform=jseval:*_config,*_data'
+// Returns: {app_config: {...}, user_data: {...}}
+
+// Specific variable extraction (now works!)
+'script/@text?transform=jseval:flashvars_343205161'
+// Returns: {video_id: "343205161", ...}
+```
+
 ## 0.5.0
 
 ### New Features
