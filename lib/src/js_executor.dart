@@ -24,6 +24,8 @@ abstract class JavaScriptExecutor {
 /// Default implementation using flutter_js
 class FlutterJsExecutor implements JavaScriptExecutor {
   JavascriptRuntime? _runtime;
+  int _consecutiveErrors = 0;
+  static const int _maxConsecutiveErrors = 10;
 
   /// Maximum script size in bytes (default: 1MB)
   final int maxScriptSize;
@@ -43,20 +45,39 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   /// Get or create runtime with initialized globals
   JavascriptRuntime _getRuntime() {
     if (_runtime == null) {
-      _runtime = getJavascriptRuntime();
-      _initializeGlobals(_runtime!);
+      try {
+        _runtime = getJavascriptRuntime();
+        _initializeGlobals(_runtime!);
+      } catch (e) {
+        _log.severe('Failed to create JavaScript runtime: $e');
+        rethrow;
+      }
     }
     return _runtime!;
   }
 
   /// Reset the runtime by disposing and creating a new one
   void _resetRuntime() {
-    try {
-      _runtime?.dispose();
-    } catch (e) {
-      _log.warning('Error disposing runtime: $e');
+    if (_runtime != null) {
+      try {
+        _runtime?.dispose();
+      } catch (e) {
+        _log.warning('Error disposing runtime: $e');
+      }
+      _runtime = null;
     }
-    _runtime = null;
+  }
+
+  /// Check if runtime is healthy by running a simple test
+  bool _isRuntimeHealthy() {
+    if (_runtime == null) return false;
+    try {
+      final result = _runtime!.evaluate('1 + 1');
+      return !result.isError && result.stringResult == '2';
+    } catch (e) {
+      _log.warning('Runtime health check failed: $e');
+      return false;
+    }
   }
 
   void _initializeGlobals(JavascriptRuntime runtime) {
@@ -105,6 +126,16 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         onLine: true
       };
       
+      // Create screen mock
+      var screen = {
+        width: 1920,
+        height: 1080,
+        availWidth: 1920,
+        availHeight: 1080,
+        colorDepth: 24,
+        pixelDepth: 24
+      };
+      
       // Create location as alias to document.location
       var location = document.location;
       
@@ -128,6 +159,10 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       var alert = function(msg) {};
       var confirm = function(msg) { return false; };
       var prompt = function(msg, defaultValue) { return null; };
+      
+      // Create atob/btoa for base64 encoding/decoding
+      var atob = function(str) { return str; };
+      var btoa = function(str) { return str; };
     ''';
 
     try {
@@ -158,7 +193,16 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       // Use existing runtime (reset should be called once per QueryString.execute())
       final runtime = _getRuntime();
 
-      final result = runtime.evaluate(processedScript);
+      JsEvalResult result;
+      try {
+        result = runtime.evaluate(processedScript);
+      } catch (e) {
+        _log.warning('Runtime evaluation crashed: $e');
+        // Reset runtime on crash
+        _resetRuntime();
+        return null;
+      }
+
       if (result.isError) {
         _log.warning('JavaScript execution error: ${result.stringResult}');
         return null;
@@ -166,6 +210,8 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       return result.stringResult;
     } catch (e) {
       _log.warning('Failed to execute JavaScript: $e');
+      // Reset runtime on any error
+      _resetRuntime();
       return null;
     }
   }
@@ -181,6 +227,13 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   dynamic extractVariablesSync(String script, List<String>? variableNames) {
     var processedScript = script;
     try {
+      // Stop if too many consecutive errors
+      if (_consecutiveErrors >= _maxConsecutiveErrors) {
+        _log.severe(
+            'Too many consecutive errors ($_consecutiveErrors), stopping execution');
+        return {};
+      }
+
       // Handle large scripts
       if (processedScript.length > maxScriptSize) {
         if (truncateLargeScripts) {
@@ -190,23 +243,55 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         } else {
           _log.warning(
               'JavaScript script too large: ${processedScript.length} bytes (max: $maxScriptSize)');
+          _consecutiveErrors++;
           return {};
         }
       }
 
       // Use existing runtime (reset should be called once per QueryString.execute())
+      // Check runtime health first
+      if (_runtime != null && !_isRuntimeHealthy()) {
+        _log.warning('Runtime unhealthy, resetting');
+        _resetRuntime();
+      }
+
       final runtime = _getRuntime();
 
       // Build the capture script
       final captureScript = _buildCaptureScript(processedScript, variableNames);
 
-      // Execute the script
-      final result = runtime.evaluate(captureScript);
-      if (result.isError) {
+      // Check total script size after wrapping (allow 5x for wrapper code)
+      const maxWrappedSize = 5 * 1024 * 1024; // 5MB max for wrapped script
+      if (captureScript.length > maxWrappedSize) {
         _log.warning(
-            'JavaScript variable extraction error: ${result.stringResult}');
+            'Wrapped script too large: ${captureScript.length} bytes (max: $maxWrappedSize)');
         return {};
       }
+
+      // Execute the script with error handling
+      JsEvalResult result;
+      try {
+        result = runtime.evaluate(captureScript);
+      } catch (e) {
+        _log.warning('Runtime evaluation crashed: $e');
+        _consecutiveErrors++;
+        // Reset runtime on crash
+        _resetRuntime();
+        return {};
+      }
+
+      if (result.isError) {
+        _consecutiveErrors++;
+        // Only log first few errors to avoid spam
+        if (_consecutiveErrors <= 3) {
+          _log.warning(
+              'JavaScript variable extraction error: ${result.stringResult}');
+        }
+        return {};
+      }
+
+      // Success - reset error counter
+      _consecutiveErrors = 0;
 
       // Get the JSON string result
       final jsonResult = result.stringResult;
@@ -242,6 +327,8 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       }
     } catch (e) {
       _log.warning('Failed to extract variables: $e');
+      // Reset runtime on any error
+      _resetRuntime();
       return {};
     }
   }
@@ -249,6 +336,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   @override
   void reset() {
     _resetRuntime();
+    _consecutiveErrors = 0;
   }
 
   /// Dispose the JavaScript runtime

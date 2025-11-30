@@ -17,8 +17,9 @@
 - **JavaScript Execution (jseval)**: Execute JavaScript code to extract variables from obfuscated scripts
   - Extract specific variables: `transform=jseval:var1,var2`
   - Auto-detect variables: `transform=jseval` (no variable names)
-  - Browser globals support: `window`, `document`, `navigator`, `console`, etc.
+  - Browser globals support: `window`, `document`, `navigator`, `console`, `screen`, `atob`, `btoa`, etc.
   - Circular reference handling: Safely serializes objects with circular references
+  - Error limiting: Stops after 10 consecutive errors to prevent crashes
 
 - **Variable Substitution**: Use saved variables in query paths and regex patterns
   - Path substitution: `json:items/${id}` uses saved `id` variable
@@ -34,13 +35,16 @@
 
 - **Cleaner Template Syntax**: Templates no longer cluttered with intermediate values by default
 - **More Intuitive**: Auto-discard matches common use case (extract data for templates)
-- **JavaScript Safety**: Large script protection prevents crashes
-  - Configurable size limits (default: 1MB script, 10MB result)
+- **JavaScript Safety**: Multiple layers of crash protection
+  - Configurable size limits (default: 1MB script, 10MB result, 5MB wrapped)
   - Optional truncation for oversized scripts
   - Smart runtime reset: Only resets when query uses jseval
   - Fresh runtime per QueryString.execute() prevents variable pollution
   - Reuses runtime within same query for efficiency
-  - Automatic cleanup on errors
+  - Runtime health checks before execution
+  - Consecutive error limiting (stops after 10 errors)
+  - Automatic cleanup and recovery on crashes
+  - Reduced error logging to prevent spam
 - **Better Documentation**: Updated README, code docs, and added migration guide
 
 ### Examples
