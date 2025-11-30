@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:html/dom.dart';
 
 import 'src/html_query.dart';
@@ -178,7 +180,9 @@ class QueryString extends DataPicker {
                     ? PageNode(node.pageData, element: item)
                     : (item is String && query.scheme == 'html')
                         ? PageData(node.pageData.url, item).getRootElement()
-                        : PageNode(node.pageData, jsonData: item);
+                        : (item is String && query.scheme == 'json')
+                            ? _tryParseJson(node, item)
+                            : PageNode(node.pageData, jsonData: item);
             final subResult = _executeSingleQuery(query, itemNode, variables);
             pipedData.addAll(subResult.data);
           }
@@ -274,5 +278,14 @@ class QueryString extends DataPicker {
   String getValue(PageNode node, {String separator = '\n'}) {
     final result = execute(node);
     return result is List ? result.join(separator) : (result ?? "").toString();
+  }
+
+  PageNode _tryParseJson(PageNode node, String item) {
+    try {
+      final json = jsonDecode(item);
+      return PageNode(node.pageData, jsonData: json);
+    } catch (e) {
+      return PageNode(node.pageData, jsonData: item);
+    }
   }
 }

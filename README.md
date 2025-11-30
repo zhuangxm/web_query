@@ -415,6 +415,33 @@ Use `>>` to parse HTML strings embedded in JSON:
 // Result: ["Alice", ...]
 ```
 
+**Piping vs Transform:**
+
+Both can extract JSON from HTML, but they work differently:
+
+```dart
+// Using transform (parses JSON but returns the whole object)
+'script#data/@text?transform=json'
+// Result: {"user": "Alice", "id": 123}
+
+// Using pipe (parses JSON AND queries it)
+'script#data/@text >> json:user'
+// Result: "Alice"
+
+// To make transform equivalent, chain with pipe:
+'script#data/@text?transform=json >> json:user'
+// Result: "Alice"
+```
+
+**When to use `>>`:**
+- Processing collections (e.g., list of HTML/JSON strings)
+- Switching context between schemes (HTML ↔ JSON)
+- Cleaner syntax for multi-step parsing
+
+**When to use `transform=json`:**
+- Extracting JavaScript variables from script tags (e.g., `transform=json:*Config*`)
+- Getting the full JSON object without further querying
+
 #### Variables and Templates
 
 Save intermediate results and combine them using templates:
