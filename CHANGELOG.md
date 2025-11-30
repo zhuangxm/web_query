@@ -1,4 +1,47 @@
+## 0.4.0
+
+### Breaking Changes
+
+- **Removed old protocol support**: The `newProtocol` parameter has been removed from `QueryString` and related functions. The library now exclusively uses the new protocol syntax.
+- **Removed legacy files**: Deleted `selector.dart`, `expression.dart`, `separator.dart`, and `web_query.dart` (~20KB code reduction)
+
+### New Features
+
+- **UI Components** (exported via `package:web_query/ui.dart`):
+  - `JsonTreeView`: Interactive collapsible JSON tree viewer with syntax highlighting
+  - `HtmlTreeView`: Interactive collapsible HTML tree viewer
+  - `DataQueryWidget`: Complete data reader widget with HTML/JSON views and query filtering
+  - `filterHtmlOnly()` and `filterHtml()`: Utility functions with optional unwanted selectors
+
+- **Modular Architecture**:
+  - Extracted UI utilities into `html_utils.dart`, `html_tree_view.dart`, `json_tree_view.dart`
+  - Better code organization and maintainability
+  - Cleaner separation of concerns
+
+### Improvements
+
+- **Performance**: Tree views use lazy loading and show first 50 items with "Show more" functionality
+- **Code Quality**: Removed ~20KB of legacy code
+- **API Simplification**: Single protocol, cleaner API surface
+- **Testing**: Added `PageData.auto` tests for automatic content type detection
+
+### Migration Guide
+
+If you were using the old protocol:
+
+```dart
+// Before (0.3.0 and earlier)
+QueryString(query, newProtocol: false)
+webValue(node, selectors, newProtocol: false)
+
+// After (0.4.0+)
+QueryString(query)
+```
+
+The old `Selectors` class and related APIs have been removed. Use `QueryString` with the new protocol syntax instead.
+
 ## 0.3.0
+
 
 ### What's New
 

@@ -56,7 +56,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.3.0
+  web_query: ^0.4.0
 ```
 
 Then run:
@@ -725,7 +725,7 @@ Main class for creating and executing queries.
 
 ```dart
 // Constructor
-QueryString(String query, {bool newProtocol = true})
+QueryString(String query)
 
 // Methods
 dynamic execute(PageNode node, {bool simplify = true})
@@ -830,44 +830,42 @@ dynamic jsonData      // JSON data (if JSON query)
 PageData pageData     // Reference to page data
 ```
 
-## Migration Guide
+## UI Components
 
-### From Old Protocol (v0.1.x)
+The package includes interactive UI components for data visualization:
 
-The old protocol is still supported but deprecated. Here's how to migrate:
+### DataQueryWidget
 
-#### Old Protocol
+Complete data reader with HTML/JSON views and query filtering:
 
 ```dart
-// Old way
-webValue(element, "div a@text")
-webCollection(element, "div a@text")
+import 'package:web_query/ui.dart';
+
+DataQueryWidget(
+  pageData: pageData,
+  title: 'Query Data',
+  onToggleExpand: () => setState(() => expanded = !expanded),
+)
 ```
 
-#### New Protocol
+### JsonTreeView
+
+Collapsible JSON tree viewer:
 
 ```dart
-// New way
-QueryString('div a/@text').getValue(node)
-QueryString('*div a/@text').getCollectionValue(node)  // For collections
+import 'package:web_query/ui.dart';
+
+JsonTreeView(json: jsonData)
 ```
 
-#### Key Differences
+### HtmlTreeView
 
-| Feature | Old Protocol | New Protocol |
-|---------|-------------|--------------|
-| Attribute accessor | `@text` | `/@text` |
-| Get all elements | `any#selector` | `*selector` |
-| Scheme prefix | Not supported | `json:`, `html:` |
-| Transforms | Limited | Full support |
-| Filters | Not supported | Full support |
-
-### Compatibility Mode
-
-To use old protocol syntax:
+Collapsible HTML tree viewer:
 
 ```dart
-QueryString('div a@text', newProtocol: false)
+import 'package:web_query/ui.dart';
+
+HtmlTreeView(document: parsedDocument)
 ```
 
 ## Contributing
