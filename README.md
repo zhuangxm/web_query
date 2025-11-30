@@ -475,11 +475,22 @@ configureJsExecutor(FlutterJsExecutor());
 - Call `configureJsExecutor(FlutterJsExecutor())` before using jseval
 - Uses `flutter_js` package for JavaScript execution
 
+**Browser Globals:**
+The JavaScript runtime automatically provides common browser globals:
+- `window` - Alias to globalThis
+- `document` - Mock document object with common properties
+- `console` - Mock console (log, warn, error, etc.)
+- `navigator` - Mock navigator with userAgent, language, etc.
+- `location` - Mock location object
+- `localStorage` / `sessionStorage` - Mock storage APIs
+- `setTimeout` / `setInterval` - Mock timer functions
+
 **Use cases:**
 - Extracting data from obfuscated JavaScript
 - Handling eval()-based variable assignments
 - Processing dynamically generated JavaScript code
 - Extracting configuration from inline scripts
+- Working with scripts that reference window/document objects
 
 #### Variables and Templates
 

@@ -159,5 +159,95 @@ void main() {
       expect(list.length, 2);
       expect(list[0]['name'], 'Item 1');
     });
+
+    test('browser globals are available', () {
+      const html = '''
+      <html>
+        <script>
+          // Use window object
+          window.myData = {"source": "window"};
+          
+          // Use document object
+          var docTitle = document.title || "default";
+          
+          // Use navigator
+          var ua = navigator.userAgent;
+          
+          var result = {
+            windowData: window.myData,
+            docTitle: docTitle,
+            hasNavigator: typeof navigator !== "undefined"
+          };
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      final dynamic result =
+          QueryString('script/@text?transform=jseval:result').execute(node);
+
+      expect(result, isA<Map>());
+      final map = result as Map;
+      expect(map['windowData']['source'], 'window');
+      expect(map['docTitle'], 'default');
+      expect(map['hasNavigator'], true);
+    });
+
+    test('handles circular references gracefully', () {
+      const html = '''
+      <html>
+        <script>
+          // Create object with circular reference
+          var obj = {name: "test", value: 123};
+          obj.self = obj;
+          
+          var data = {
+            name: obj.name,
+            value: obj.value,
+            hasCircular: obj.self === obj
+          };
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      final dynamic result =
+          QueryString('script/@text?transform=jseval:data').execute(node);
+
+      expect(result, isA<Map>());
+      final map = result as Map;
+      expect(map['name'], 'test');
+      expect(map['value'], 123);
+      expect(map['hasCircular'], true);
+    });
+
+    test('handles window.screen assignment', () {
+      const html = '''
+      <html>
+        <script>
+          window.screen = {width: 1920, height: 1080};
+          var screenData = {
+            width: window.screen.width,
+            height: window.screen.height
+          };
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      final dynamic result =
+          QueryString('script/@text?transform=jseval:screenData').execute(node);
+
+      expect(result, isA<Map>());
+      final map = result as Map;
+      expect(map['width'], 1920);
+      expect(map['height'], 1080);
+    });
   });
 }

@@ -22,23 +22,116 @@ abstract class JavaScriptExecutor {
 class FlutterJsExecutor implements JavaScriptExecutor {
   JavascriptRuntime? _runtime;
 
-  JavascriptRuntime get runtime {
-    _runtime ??= getJavascriptRuntime();
+  /// Get or create runtime with initialized globals
+  JavascriptRuntime _getRuntime() {
+    if (_runtime == null) {
+      _runtime = getJavascriptRuntime();
+      _initializeGlobals(_runtime!);
+    }
     return _runtime!;
+  }
+
+  /// Reset the runtime by disposing and creating a new one
+  void _resetRuntime() {
+    _runtime?.dispose();
+    _runtime = null;
+  }
+
+  void _initializeGlobals(JavascriptRuntime runtime) {
+    // Set up common browser globals
+    final initScript = '''
+      // Create window object as alias to globalThis
+      var window = globalThis;
+      
+      // Create document mock object
+      var document = {
+        getElementById: function(id) { return null; },
+        getElementsByTagName: function(tag) {return null;},
+        querySelector: function(selector) { return null; },
+        querySelectorAll: function(selector) { return []; },
+        createElement: function(tag) { return {}; },
+        body: {},
+        head: {},
+        title: '',
+        location: {
+          href: '',
+          protocol: 'https:',
+          host: '',
+          hostname: '',
+          port: '',
+          pathname: '/',
+          search: '',
+          hash: ''
+        }
+      };
+      
+      // Create console mock
+      var console = {
+        log: function() {},
+        warn: function() {},
+        error: function() {},
+        info: function() {},
+        debug: function() {}
+      };
+      
+      // Create navigator mock
+      var navigator = {
+        userAgent: 'Mozilla/5.0 (Flutter) AppleWebKit/537.36',
+        language: 'en-US',
+        languages: ['en-US', 'en'],
+        platform: 'Flutter',
+        onLine: true
+      };
+      
+      // Create location as alias to document.location
+      var location = document.location;
+      
+      // Create localStorage and sessionStorage mocks
+      var localStorage = {
+        getItem: function(key) { return null; },
+        setItem: function(key, value) {},
+        removeItem: function(key) {},
+        clear: function() {},
+        length: 0
+      };
+      var sessionStorage = localStorage;
+      
+      // Create common functions
+      var setTimeout = function(fn, delay) { return 0; };
+      var setInterval = function(fn, delay) { return 0; };
+      var clearTimeout = function(id) {};
+      var clearInterval = function(id) {};
+      
+      // Create alert, confirm, prompt mocks
+      var alert = function(msg) {};
+      var confirm = function(msg) { return false; };
+      var prompt = function(msg, defaultValue) { return null; };
+    ''';
+
+    try {
+      runtime.evaluate(initScript);
+      _log.fine('JavaScript globals initialized');
+    } catch (e) {
+      _log.warning('Failed to initialize JavaScript globals: $e');
+    }
   }
 
   @override
   Future<dynamic> execute(String script) async {
     try {
+      // Reset runtime for fresh execution
+      _resetRuntime();
+      final runtime = _getRuntime();
+
       final result = runtime.evaluate(script);
       if (result.isError) {
         _log.warning('JavaScript execution error: ${result.stringResult}');
-        return {"error": 'JavaScript execution error: ${result.stringResult}'};
+        return null;
       }
       return result.stringResult;
     } catch (e) {
       _log.warning('Failed to execute JavaScript: $e');
-      return {"error": 'Failed to execute JavaScript: $e'};
+      return null;
     }
   }
 
@@ -52,19 +145,19 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   @override
   dynamic extractVariablesSync(String script, List<String>? variableNames) {
     try {
+      // Reset runtime for fresh execution
+      _resetRuntime();
+      final runtime = _getRuntime();
+
       // Build the capture script
       final captureScript = _buildCaptureScript(script, variableNames);
 
-      _log.warning("script: $captureScript");
       // Execute the script
       final result = runtime.evaluate(captureScript);
       if (result.isError) {
         _log.warning(
             'JavaScript variable extraction error: ${result.stringResult}');
-        return {
-          "error":
-              'JavaScript variable extraction error: ${result.stringResult}'
-        };
+        return {};
       }
 
       // Get the JSON string result
@@ -73,7 +166,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       if (jsonResult.isEmpty ||
           jsonResult == 'undefined' ||
           jsonResult == 'null') {
-        return null;
+        return {};
       }
 
       // Parse the JSON string
@@ -90,12 +183,18 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         return parsed;
       } catch (e) {
         _log.warning('Failed to parse JSON result: $jsonResult, error: $e');
-        return {"error": 'Failed to parse JSON result: $jsonResult, error: $e'};
+        return {};
       }
     } catch (e) {
       _log.warning('Failed to extract variables: $e');
-      return {"error": 'Failed to extract variables: $e'};
+      return {};
     }
+  }
+
+  /// Dispose the JavaScript runtime
+  void dispose() {
+    _runtime?.dispose();
+    _runtime = null;
   }
 
   String _buildCaptureScript(String script, List<String>? variableNames) {
@@ -109,7 +208,40 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       return '''
 (function() {
   eval(${_escapeScript(script)});
-  return JSON.stringify({
+  
+  // Custom JSON.stringify with circular reference handling
+  function safeStringify(obj, seen) {
+    seen = seen || new WeakSet();
+    
+    if (obj === null || obj === undefined) return JSON.stringify(obj);
+    if (typeof obj !== 'object') return JSON.stringify(obj);
+    
+    // Check for circular reference
+    if (seen.has(obj)) return JSON.stringify('[Circular]');
+    seen.add(obj);
+    
+    if (Array.isArray(obj)) {
+      var items = obj.map(function(item) {
+        return safeStringify(item, seen);
+      });
+      return '[' + items.join(',') + ']';
+    }
+    
+    var pairs = [];
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        try {
+          var value = safeStringify(obj[key], seen);
+          pairs.push(JSON.stringify(key) + ':' + value);
+        } catch (e) {
+          // Skip properties that can't be serialized
+        }
+      }
+    }
+    return '{' + pairs.join(',') + '}';
+  }
+  
+  return safeStringify({
     $captures
   });
 })();
@@ -118,6 +250,38 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       // Capture all variables (auto-detect)
       return '''
 (function() {
+  // Custom JSON.stringify with circular reference handling
+  function safeStringify(obj, seen) {
+    seen = seen || new WeakSet();
+    
+    if (obj === null || obj === undefined) return JSON.stringify(obj);
+    if (typeof obj !== 'object') return JSON.stringify(obj);
+    
+    // Check for circular reference
+    if (seen.has(obj)) return JSON.stringify('[Circular]');
+    seen.add(obj);
+    
+    if (Array.isArray(obj)) {
+      var items = obj.map(function(item) {
+        return safeStringify(item, seen);
+      });
+      return '[' + items.join(',') + ']';
+    }
+    
+    var pairs = [];
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        try {
+          var value = safeStringify(obj[key], seen);
+          pairs.push(JSON.stringify(key) + ':' + value);
+        } catch (e) {
+          // Skip properties that can't be serialized
+        }
+      }
+    }
+    return '{' + pairs.join(',') + '}';
+  }
+  
   var __before__ = Object.keys(globalThis);
   
   eval(${_escapeScript(script)});
@@ -134,7 +298,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
     }
   }
   
-  return JSON.stringify(__captured__);
+  return safeStringify(__captured__);
 })();
 ''';
     }
@@ -143,12 +307,6 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   String _escapeScript(String script) {
     // Escape the script for use in eval()
     return jsonEncode(script);
-  }
-
-  /// Dispose the JavaScript runtime
-  void dispose() {
-    _runtime?.dispose();
-    _runtime = null;
   }
 }
 
