@@ -443,6 +443,44 @@ Both can extract JSON from HTML, but they work differently:
 - Extracting JavaScript variables from script tags (e.g., `transform=json:*Config*`)
 - Getting the full JSON object without further querying
 
+#### JavaScript Execution (jseval)
+
+Execute JavaScript code to extract variables from obfuscated or eval-based scripts:
+
+```dart
+import 'package:web_query/js.dart';
+
+// Configure the JavaScript executor (once at app startup)
+configureJsExecutor(FlutterJsExecutor());
+
+// Extract variables from JavaScript
+'script/@text?transform=jseval:config'
+// Executes the script and extracts the 'config' variable
+
+// Extract multiple variables
+'script/@text?transform=jseval:userId,userName,isActive'
+// Returns: {"userId": 123, "userName": "Alice", "isActive": true}
+
+// Works with eval() and obfuscated code
+'script/@text?transform=jseval:secret'
+// Handles: eval('var secret = "hidden_value";')
+
+// Chain with other transforms
+'script/@text?transform=jseval:title;upper'
+// Extract and uppercase
+```
+
+**Requirements:**
+- Import `package:web_query/js.dart`
+- Call `configureJsExecutor(FlutterJsExecutor())` before using jseval
+- Uses `flutter_js` package for JavaScript execution
+
+**Use cases:**
+- Extracting data from obfuscated JavaScript
+- Handling eval()-based variable assignments
+- Processing dynamically generated JavaScript code
+- Extracting configuration from inline scripts
+
 #### Variables and Templates
 
 Save intermediate results and combine them using templates:

@@ -62,6 +62,10 @@ dynamic applyTransform(PageNode node, dynamic value, String transform) {
     return applyJsonTransform(value, transform.substring(5));
   }
 
+  if (transform.startsWith('jseval:')) {
+    return applyJsEvalTransform(value, transform.substring(7));
+  }
+
   switch (transform) {
     case 'upper':
       return value.toString().toUpperCase();
@@ -69,6 +73,8 @@ dynamic applyTransform(PageNode node, dynamic value, String transform) {
       return value.toString().toLowerCase();
     case 'json':
       return applyJsonTransform(value, null);
+    case 'jseval':
+      return applyJsEvalTransform(value, null);
     default:
       return value;
   }
@@ -242,4 +248,47 @@ String prepareReplacement(PageNode node, String replacement) {
   }
 
   return result;
+}
+
+dynamic applyJsEvalTransform(dynamic value, String? variableNames) {
+  if (value == null) return null;
+
+  try {
+    // Import js_executor dynamically
+    final jsExecutor = _getJsExecutorInstance();
+    if (jsExecutor == null) {
+      _log.warning(
+          'JavaScript executor not configured. Use: import "package:web_query/js.dart"; JsExecutorRegistry.instance = FlutterJsExecutor();');
+      return null;
+    }
+
+    final script = value.toString().trim();
+    if (script.isEmpty) return null;
+
+    // Parse variable names if provided
+    List<String>? varList;
+    if (variableNames != null && variableNames.isNotEmpty) {
+      varList = variableNames.split(',').map((e) => e.trim()).toList();
+    }
+
+    // Execute JavaScript synchronously using flutter_js
+    // flutter_js evaluate() is synchronous, so this works
+    final result = jsExecutor.extractVariablesSync(script, varList);
+
+    return result;
+  } catch (e) {
+    _log.warning('Failed to execute JavaScript: $e');
+    return null;
+  }
+}
+
+// Global reference to avoid circular dependency
+dynamic _jsExecutorInstance;
+
+void setJsExecutorInstance(dynamic instance) {
+  _jsExecutorInstance = instance;
+}
+
+dynamic _getJsExecutorInstance() {
+  return _jsExecutorInstance;
 }
