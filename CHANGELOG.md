@@ -1,3 +1,16 @@
+## 0.6.1
+
+### Improvements
+
+- **Refactored Query Parsing**: Significant refactoring of `QueryPart.parse` for better maintainability and performance.
+- **Robust Parameter Parsing**:
+  - Fixed issue where reserved parameters without values (like `&keep`) were incorrectly consumed by preceding parameters.
+  - Improved regex patterns to correctly identify parameter boundaries.
+  - Added detailed comments to regex patterns for better developer experience.
+- **Code Quality**:
+  - Converted hardcoded scheme and parameter strings to constants.
+  - Simplified transform splitting logic.
+
 ## 0.6.0
 
 ### New Features
