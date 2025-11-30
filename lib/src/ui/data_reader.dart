@@ -316,7 +316,9 @@ class DataQueryWidget extends HookWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       SelectableText(
-                                        valueResult.value!,
+                                        valueResult.value!.length > 500
+                                            ? '${valueResult.value!.substring(0, 500)}...${valueResult.value!.length - 500} more characters' // Add ellipsis if truncated
+                                            : valueResult.value!,
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Colors.white,

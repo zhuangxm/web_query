@@ -158,6 +158,7 @@ class QueryString extends DataPicker {
   dynamic _executeQueries(PageNode node, bool simplify) {
     QueryResult result = QueryResult([]);
     final variables = <String, dynamic>{};
+    final hasMultipleQueries = _queries.length > 1;
 
     for (var i = 0; i < _queries.length; i++) {
       var query = _queries[i];
@@ -184,7 +185,7 @@ class QueryString extends DataPicker {
                         : (item is String && query.scheme == 'json')
                             ? _tryParseJson(node, item)
                             : PageNode(node.pageData, jsonData: item);
-            final subResult = _executeSingleQuery(query, itemNode, variables);
+            final subResult = _executeSingleQueryWithDiscard(query, itemNode, variables, hasMultipleQueries);
             pipedData.addAll(subResult.data);
           }
           result_ = QueryResult(pipedData);
@@ -192,20 +193,17 @@ class QueryString extends DataPicker {
         // Replace result with piped result
         result = result_;
       } else {
-        result_ = _executeSingleQuery(query, node, variables);
+        result_ = _executeSingleQueryWithDiscard(query, node, variables, hasMultipleQueries);
         result = result.combine(result_);
       }
     }
 
     //_log.fine("execute queries result: $result");
     
-    // Filter out discarded items when simplifying
-    if (simplify) {
-      result = QueryResult(result.data.where((e) => e is! DiscardMarker).toList());
-    } else {
-      // Unwrap DiscardMarker when not simplifying
-      result = QueryResult(result.data.map((e) => e is DiscardMarker ? e.value : e).toList());
-    }
+    // Always filter out discarded items and unwrap kept items
+    result = QueryResult(result.data
+        .where((e) => e is! DiscardMarker)
+        .toList());
     
     return !simplify
         ? result.data.map((e) => e is Element
@@ -268,6 +266,19 @@ class QueryString extends DataPicker {
         .where(
             (e) => e != null && e != 'null' && e.toString().trim().isNotEmpty)
         .toList());
+    
+    return result;
+  }
+
+  QueryResult _executeSingleQueryWithDiscard(
+      QueryPart query, PageNode node, Map<String, dynamic> variables, bool shouldDiscardByDefault) {
+    var result = _executeSingleQuery(query, node, variables);
+    
+    // Discard results by default in multi-query chains unless 'keep' is specified
+    if (shouldDiscardByDefault && !query.transforms.containsKey('keep')) {
+      result = QueryResult(result.data.map((e) => DiscardMarker(e)).toList());
+    }
+    
     return result;
   }
 
