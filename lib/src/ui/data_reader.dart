@@ -36,6 +36,7 @@ class DataQueryWidget extends HookWidget {
     final viewMode = useState(DataViewMode.html);
     final queryController = useTextEditingController();
     final filterResults = useState<List<Map<String, dynamic>>>([]);
+    final valueResult = useState<String?>(null);
 
     // Memoize filtered HTML to avoid re-parsing on every rebuild
     final filteredHtml = useMemoized(
@@ -63,12 +64,17 @@ class DataQueryWidget extends HookWidget {
           final query = queryController.text.trim();
           if (query.isEmpty || pageData == null) {
             filterResults.value = [];
+            valueResult.value = null;
             return;
           }
 
           try {
             final queryString = QueryString(query);
             final root = pageData!.getRootElement();
+
+            // Get simplified value result
+            final value = queryString.getValue(root);
+            valueResult.value = value;
 
             // Try to get collection first
             final collection = queryString.getCollectionValue(root);
@@ -91,6 +97,7 @@ class DataQueryWidget extends HookWidget {
             filterResults.value = [
               {'type': FilterResultType.error, 'value': 'Error: $e'}
             ];
+            valueResult.value = 'Error: $e';
           }
         });
       }
@@ -264,94 +271,158 @@ class DataQueryWidget extends HookWidget {
                           ],
                         ),
                       ),
-                      // Results
+                      // Filter results
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.all(8),
                           color: Colors.grey.shade900,
-                          child: filterResults.value.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    'Enter a QueryString to filter data',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 14,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // getValue result section
+                              if (valueResult.value != null)
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade900
+                                        .withValues(alpha: 0.3),
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey.shade700,
+                                        width: 1,
+                                      ),
                                     ),
-                                    textAlign: TextAlign.center,
                                   ),
-                                )
-                              : Column(
-                                  children: [
-                                    Text(
-                                      '匹配数: ${filterResults.value.length} 最多显示50条',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade400,
-                                        fontSize: 14,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    Expanded(
-                                      child: ListView.builder(
-                                        itemCount:
-                                            min(50, filterResults.value.length),
-                                        itemBuilder: (context, index) {
-                                          final result =
-                                              filterResults.value[index];
-                                          final type = result['type']
-                                              as FilterResultType;
-                                          final value =
-                                              result['value'] as String;
-                                          final isError =
-                                              type == FilterResultType.error;
-                                          final isHtml =
-                                              type == FilterResultType.html;
-
-                                          return Container(
-                                            margin: const EdgeInsets.only(
-                                                bottom: 8),
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: isError
-                                                  ? Colors.red.shade900
-                                                  : isHtml
-                                                      ? Colors.green.shade900
-                                                      : Colors.blue.shade900,
-                                              border: Border.all(
-                                                color: isError
-                                                    ? Colors.red.shade700
-                                                    : isHtml
-                                                        ? Colors.green.shade700
-                                                        : Colors.blue.shade700,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.text_fields,
+                                            size: 14,
+                                            color: Colors.blue.shade300,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'getValue() Result',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.blue.shade300,
                                             ),
-                                            child: Row(
-                                              children: [
-                                                Expanded(
-                                                  child: SelectableText(
-                                                    value,
-                                                    style: TextStyle(
-                                                      fontFamily: 'monospace',
-                                                      fontSize: 14,
-                                                      color: isError
-                                                          ? Colors.red.shade200
-                                                          : isHtml
-                                                              ? Colors
-                                                                  .greenAccent
-                                                              : Colors
-                                                                  .lightBlueAccent,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 4),
+                                      SelectableText(
+                                        valueResult.value!,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                              // Collection results
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  child: filterResults.value.isEmpty
+                                      ? Center(
+                                          child: Text(
+                                            'Enter a QueryString to filter data',
+                                            style: TextStyle(
+                                              color: Colors.grey.shade400,
+                                              fontSize: 14,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        )
+                                      : Column(children: [
+                                          Text(
+                                            '匹配数: ${filterResults.value.length} 最多显示50条',
+                                            style: TextStyle(
+                                              color: Colors.grey.shade400,
+                                              fontSize: 14,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          Expanded(
+                                            child: ListView.builder(
+                                              itemCount: min(50,
+                                                  filterResults.value.length),
+                                              itemBuilder: (context, index) {
+                                                final result =
+                                                    filterResults.value[index];
+                                                final type = result['type']
+                                                    as FilterResultType;
+                                                final value =
+                                                    result['value'] as String;
+                                                final isError = type ==
+                                                    FilterResultType.error;
+                                                final isHtml = type ==
+                                                    FilterResultType.html;
+
+                                                return Container(
+                                                  margin: const EdgeInsets.only(
+                                                      bottom: 8),
+                                                  padding:
+                                                      const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color: isError
+                                                        ? Colors.red.shade900
+                                                        : isHtml
+                                                            ? Colors
+                                                                .green.shade900
+                                                            : Colors
+                                                                .blue.shade900,
+                                                    border: Border.all(
+                                                      color: isError
+                                                          ? Colors.red.shade700
+                                                          : isHtml
+                                                              ? Colors.green
+                                                                  .shade700
+                                                              : Colors.blue
+                                                                  .shade700,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            4),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: SelectableText(
+                                                          value,
+                                                          style: TextStyle(
+                                                            fontFamily:
+                                                                'monospace',
+                                                            fontSize: 14,
+                                                            color: isError
+                                                                ? Colors.red
+                                                                    .shade200
+                                                                : isHtml
+                                                                    ? Colors
+                                                                        .greenAccent
+                                                                    : Colors
+                                                                        .lightBlueAccent,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ]),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
