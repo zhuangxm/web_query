@@ -382,8 +382,9 @@ Extract JSON data from `<script>` tags or JavaScript variables:
 // Chain with JSON query
 'script#data/@text?transform=json++json:items/0/title'
 
-// Wildcard variable matching
-'script/@text?transform=json:*Config*'        // Matches var myConfig = ...
+// Wildcard variable matching (supports objects, arrays, and primitives)
+'script/@text?transform=json:*Config*'        // Matches var myConfig = {...}
+'script/@text?transform=json:count'           // Matches var count = 42;
 ```
 
 #### Query Piping (`>>`)
@@ -457,7 +458,12 @@ Save intermediate results and combine them using templates:
 
 // Combine results
 'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
-// Result: "Alice Smith"
+// Result: "Alice Smith" (along with "Alice" and "Smith")
+
+// Discard intermediate results (only return template when using getValue)
+'json:firstName?save=fn&discard ++ json:lastName?save=ln&discard ++ template:${fn} ${ln}'
+// getValue() → "Alice Smith" (discarded items filtered out)
+// getCollection() → [PageNode(Alice), PageNode(Smith), PageNode(Alice Smith)]
 ```
 
 ### Filters

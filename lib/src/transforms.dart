@@ -7,6 +7,12 @@ import 'query_result.dart';
 
 final _log = Logger('QueryString.Transforms');
 
+/// Marker class to indicate a value should be discarded when simplify=true
+class DiscardMarker {
+  final dynamic value;
+  DiscardMarker(this.value);
+}
+
 /// Extension for transform, filter, and regexp operations on QueryString
 dynamic applyAllTransforms(PageNode node, dynamic value,
     Map<String, List<String>> transforms, Map<String, dynamic> variables) {
@@ -22,12 +28,17 @@ dynamic applyAllTransforms(PageNode node, dynamic value,
       case 'filter':
         return entry.value.fold(result, (v, filter) => applyFilter(v, filter));
       case 'save':
-        return entry.value.fold(result, (v, varName) {
+        // Save BEFORE discard so we save the unwrapped value
+        entry.value.fold(result, (v, varName) {
           if (v != null) {
             variables[varName] = v;
           }
           return v;
         });
+        return result;
+      case 'discard':
+        // Mark value for discard by wrapping in a special marker
+        return entry.value.isEmpty ? result : DiscardMarker(result);
       default:
         return result;
     }
@@ -76,8 +87,19 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
 
     // Match patterns like: var config = {...}; or window.__DATA__ = {...};
     final patterns = [
+      // Objects
       RegExp('$escapedName\\s*=\\s*({[\\s\\S]*?});', multiLine: true),
+      // Arrays
       RegExp('$escapedName\\s*=\\s*(\\[[\\s\\S]*?\\]);', multiLine: true),
+      // Numbers (including decimals, negative, scientific notation)
+      RegExp('$escapedName\\s*=\\s*(-?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?);',
+          multiLine: true),
+      // Strings (single or double quotes)
+      RegExp('$escapedName\\s*=\\s*(["\'][\\s\\S]*?["\']);', multiLine: true),
+      // Booleans
+      RegExp('$escapedName\\s*=\\s*(true|false);', multiLine: true),
+      // Null
+      RegExp('$escapedName\\s*=\\s*(null);', multiLine: true),
     ];
 
     bool found = false;

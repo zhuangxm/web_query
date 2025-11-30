@@ -131,9 +131,8 @@ class QueryPart {
       return 'regexp=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
 
-    // Pre-encode save values
-    final saveRegex =
-        RegExp(r'save=((?:(?!&(?:filter|update|transform|regexp|save)=).)*)');
+    // Pre-encode save values (stop at & or end of string)
+    final saveRegex = RegExp(r'save=([^&]*)');
     queryString = queryString.replaceAllMapped(saveRegex, (match) {
       return 'save=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
@@ -194,6 +193,10 @@ class QueryPart {
     if (params.containsKey('save')) {
       transforms['save'] = params['save']!;
       params.remove('save');
+    }
+    if (params.containsKey('discard')) {
+      transforms['discard'] = params['discard']!;
+      params.remove('discard');
     }
 
     return QueryPart(scheme, path, params, transforms, required,

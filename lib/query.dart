@@ -11,6 +11,7 @@ import 'src/transforms.dart';
 import 'src/url_query.dart';
 
 export 'src/page_data.dart';
+export 'src/transforms.dart' show DiscardMarker;
 
 abstract class DataPicker {
   Iterable<PageNode> getCollection(PageNode node);
@@ -197,6 +198,15 @@ class QueryString extends DataPicker {
     }
 
     //_log.fine("execute queries result: $result");
+    
+    // Filter out discarded items when simplifying
+    if (simplify) {
+      result = QueryResult(result.data.where((e) => e is! DiscardMarker).toList());
+    } else {
+      // Unwrap DiscardMarker when not simplifying
+      result = QueryResult(result.data.map((e) => e is DiscardMarker ? e.value : e).toList());
+    }
+    
     return !simplify
         ? result.data.map((e) => e is Element
             ? PageNode(node.pageData, element: e)
