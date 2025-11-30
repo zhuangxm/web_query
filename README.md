@@ -56,7 +56,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.4.0
+  web_query: ^0.5.0
 ```
 
 Then run:
@@ -380,7 +380,7 @@ Extract JSON data from `<script>` tags or JavaScript variables:
 'script/@text?transform=json:window.__DATA__' // window.__DATA__ = {...}
 
 // Chain with JSON query
-'script#data/@text?transform=json++json:items/0/title'
+'script#data/@text?transform=json >> json:items/0/title'
 
 // Wildcard variable matching (supports objects, arrays, and primitives)
 'script/@text?transform=json:*Config*'        // Matches var myConfig = {...}

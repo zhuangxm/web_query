@@ -1,3 +1,63 @@
+## 0.5.0
+
+### New Features
+
+- **Keep Parameter**: Added `&keep` parameter to preserve intermediate values when using `?save=`
+  - `?save=varName` - Save and auto-discard (cleaner templates)
+  - `?save=varName&keep` - Save and keep in output
+  - Selective keeping: Mix saved-only and saved-kept values in same query
+
+- **Enhanced JSON Extraction**: Improved `transform=json` to extract JavaScript variables from `<script>` tags
+  - Extract objects: `transform=json:config` matches `var config = {...}`
+  - Extract arrays: `transform=json:items` matches `var items = [...]`
+  - Extract primitives: `transform=json:count` matches `var count = 42`
+  - Wildcard matching: `transform=json:*Config*` matches `var myConfig = {...}`
+  - Supports multiple formats: `window.__DATA__`, `var data`, etc.
+
+- **Variable Substitution**: Use saved variables in query paths and regex patterns
+  - Path substitution: `json:items/${id}` uses saved `id` variable
+  - Regex substitution: `regexp:/${pattern}/replacement/` uses saved `pattern` variable
+  - Template scheme: `template:${var1} ${var2}` combines multiple variables
+
+### Improvements
+
+- **Cleaner Template Syntax**: Templates no longer cluttered with intermediate values by default
+- **More Intuitive**: Auto-discard matches common use case (extract data for templates)
+- **Better Documentation**: Updated README, code docs, and added migration guide
+
+### Examples
+
+```dart
+// Variable handling - Before (0.4.0)
+'json:firstName?save=fn&discard ++ json:lastName?save=ln&discard ++ template:${fn} ${ln}'
+// Result: "Alice Smith"
+
+// Variable handling - After (0.5.0) - cleaner!
+'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
+// Result: "Alice Smith"
+
+// Keep intermediate values when needed
+'json:firstName?save=fn&keep ++ json:lastName?save=ln&keep ++ template:${fn} ${ln}'
+// Result: ["Alice", "Smith", "Alice Smith"]
+
+// Extract JavaScript variables from script tags
+'script/@text?transform=json:window.__INITIAL_STATE__'
+// Extracts: window.__INITIAL_STATE__ = {"user": {...}}
+
+'script/@text?transform=json:*Config*'
+// Matches: var myConfig = {...}, appConfig = {...}, etc.
+
+// Use variables in paths
+'json:selectedId?save=id ++ json:items/${id}/name'
+// Gets item name using saved id
+
+// Use variables in regex
+'#pattern/@text?save=p ++ .content/@text?regexp:/${p}/replaced/'
+// Replaces pattern found in first element
+```
+
+See [MIGRATION_KEEP.md](MIGRATION_KEEP.md) for detailed migration guide.
+
 ## 0.4.0
 
 ### Breaking Changes
