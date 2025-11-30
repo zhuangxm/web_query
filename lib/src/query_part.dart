@@ -203,8 +203,88 @@ class QueryPart {
       params.remove('discard');
     }
 
+    // Validate parameters - check for unknown/typo parameters
+    _validateParameters(params, transforms, scheme);
+
     return QueryPart(scheme, path, params, transforms, required,
         isPipe: isPipe);
+  }
+
+  static void _validateParameters(Map<String, List<String>> params,
+      Map<String, List<String>> transforms, String scheme) {
+    // Known valid parameter names (currently all are moved to transforms)
+    const validParams = <String>{};
+    const validTransforms = {
+      'transform',
+      'filter',
+      'update',
+      'save',
+      'keep',
+      'discard',
+      'regexp'
+    };
+
+    // Check for unknown parameters (likely typos)
+    // Skip validation for URL scheme as it has dynamic parameters (_scheme, _host, etc.)
+    if (scheme != 'url') {
+      for (var key in params.keys) {
+        if (!validParams.contains(key)) {
+          throw FormatException(
+              'Unknown query parameter: "$key". Did you mean one of: ${validTransforms.join(', ')}?');
+        }
+      }
+    }
+
+    // Validate transform values
+    if (transforms.containsKey('transform')) {
+      for (var transform in transforms['transform']!) {
+        _validateTransform(transform);
+      }
+    }
+
+    // Validate save parameter has a value
+    if (transforms.containsKey('save')) {
+      for (var saveVar in transforms['save']!) {
+        if (saveVar.isEmpty) {
+          throw FormatException(
+              'save parameter requires a variable name: ?save=varName');
+        }
+      }
+    }
+  }
+
+  static void _validateTransform(String transform) {
+    // Check for common transform types
+    if (transform.startsWith('regexp:')) {
+      final pattern = transform.substring(7);
+      if (pattern.isEmpty) {
+        throw FormatException(
+            'regexp transform requires a pattern: ?transform=regexp:/pattern/');
+      }
+      // Check if it looks like a valid regexp format
+      if (!pattern.startsWith('/')) {
+        throw FormatException(
+            'regexp pattern must start with /: ?transform=regexp:/pattern/');
+      }
+    } else if (transform.startsWith('json:')) {
+      // json: can have optional variable name, so just check it's not malformed
+      final varName = transform.substring(5);
+      if (varName.contains('?') || varName.contains('&')) {
+        throw FormatException(
+            'Invalid json transform format: ?transform=json:varName');
+      }
+    } else if (transform.startsWith('jseval:')) {
+      // jseval: can have optional variable names
+      final varNames = transform.substring(7);
+      if (varNames.contains('?') || varNames.contains('&')) {
+        throw FormatException(
+            'Invalid jseval transform format: ?transform=jseval:var1,var2');
+      }
+    } else if (!['upper', 'lower', 'json', 'jseval'].contains(transform)) {
+      // Unknown transform - might be a typo
+      throw FormatException(
+          'Unknown transform: "$transform". Valid transforms: upper, lower, json, jseval, regexp');
+    }
   }
 
   bool isRequired() {
