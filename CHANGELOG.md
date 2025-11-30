@@ -38,13 +38,14 @@
 - **JavaScript Safety**: Multiple layers of crash protection
   - Configurable size limits (default: 1MB script, 10MB result, 5MB wrapped)
   - Optional truncation for oversized scripts
-  - Smart runtime reset: Only resets when query uses jseval
-  - Fresh runtime per QueryString.execute() prevents variable pollution
+  - Smart variable clearing: Clears globals between queries without disposing runtime
+  - Only clears when query uses jseval (performance optimization)
   - Reuses runtime within same query for efficiency
   - Runtime health checks before execution
   - Consecutive error limiting (stops after 10 errors)
-  - Automatic cleanup and recovery on crashes
+  - Automatic recovery on errors
   - Reduced error logging to prevent spam
+  - No runtime disposal (prevents crashes)
 - **Better Documentation**: Updated README, code docs, and added migration guide
 
 ### Examples

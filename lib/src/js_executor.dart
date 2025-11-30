@@ -46,7 +46,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   JavascriptRuntime _getRuntime() {
     if (_runtime == null) {
       try {
-        _runtime = getJavascriptRuntime();
+        _runtime = getJavascriptRuntime(xhr: false);
         _initializeGlobals(_runtime!);
       } catch (e) {
         _log.severe('Failed to create JavaScript runtime: $e');
@@ -56,15 +56,35 @@ class FlutterJsExecutor implements JavaScriptExecutor {
     return _runtime!;
   }
 
-  /// Reset the runtime by disposing and creating a new one
+  /// Reset the runtime by clearing global variables (safer than dispose)
   void _resetRuntime() {
-    if (_runtime != null) {
-      try {
-        _runtime?.dispose();
-      } catch (e) {
-        _log.warning('Error disposing runtime: $e');
-      }
-      _runtime = null;
+    // Don't dispose - it causes crashes
+    // Instead, just clear user-defined variables
+    if (_runtime == null) return;
+
+    try {
+      // Clear user-defined variables but keep our mocks
+      final clearScript = '''
+        (function() {
+          var keysToKeep = ['window', 'document', 'console', 'navigator', 'screen', 
+                           'location', 'localStorage', 'sessionStorage', 'setTimeout', 
+                           'setInterval', 'clearTimeout', 'clearInterval', 'alert', 
+                           'confirm', 'prompt', 'atob', 'btoa'];
+          var allKeys = Object.keys(globalThis);
+          for (var i = 0; i < allKeys.length; i++) {
+            var key = allKeys[i];
+            if (keysToKeep.indexOf(key) === -1 && !key.startsWith('__')) {
+              try {
+                delete globalThis[key];
+              } catch(e) {}
+            }
+          }
+        })();
+      ''';
+      _runtime!.evaluate(clearScript);
+      _log.fine('JavaScript globals cleared');
+    } catch (e) {
+      _log.warning('Error clearing globals: $e');
     }
   }
 
@@ -311,7 +331,8 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
       // Parse the JSON string
       try {
-        final parsed = jsonDecode(jsonResult);
+        final updatedJsonResult = jsonResult.replaceAll("undefined", '""');
+        final parsed = jsonDecode(updatedJsonResult);
 
         // If only one variable requested, return its value directly
         if (variableNames != null &&
@@ -341,7 +362,8 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
   /// Dispose the JavaScript runtime
   void dispose() {
-    _runtime?.dispose();
+    // Don't dispose - it causes crashes
+    // Just clear the reference
     _runtime = null;
   }
 
@@ -396,6 +418,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 ''';
     } else {
       // Capture all variables (auto-detect)
+      // Use indirect eval to execute in global scope
       return '''
 (function() {
   // Custom JSON.stringify with circular reference handling
@@ -430,19 +453,36 @@ class FlutterJsExecutor implements JavaScriptExecutor {
     return '{' + pairs.join(',') + '}';
   }
   
+  // Capture before state
   var __before__ = Object.keys(globalThis);
   
-  eval(${_escapeScript(script)});
+  // Execute the script in global scope using indirect eval
+  (1, eval)(${_escapeScript(script)});
   
+  // Capture after state
   var __after__ = Object.keys(globalThis);
   var __captured__ = {};
   
+  // Find new variables
   for (var i = 0; i < __after__.length; i++) {
     var key = __after__[i];
     if (__before__.indexOf(key) === -1) {
       try {
         __captured__[key] = globalThis[key];
       } catch(e) {}
+    }
+  }
+  
+  // Also check window object for common patterns
+  if (typeof window !== 'undefined') {
+    var commonPatterns = ['__INITIAL_STATE__', '__NEXT_DATA__', '__NUXT__', 'pageData', 'appData', 'config'];
+    for (var j = 0; j < commonPatterns.length; j++) {
+      var pattern = commonPatterns[j];
+      if (typeof window[pattern] !== 'undefined' && !__captured__[pattern]) {
+        try {
+          __captured__[pattern] = window[pattern];
+        } catch(e) {}
+      }
     }
   }
   
