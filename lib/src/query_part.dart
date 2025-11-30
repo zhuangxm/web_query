@@ -52,11 +52,12 @@ class QueryPart {
     return value.split(pattern);
   }
 
-  static QueryPart parse(String queryString,
-      {required bool required, bool isPipe = false}) {
+  /// Extracts and removes the scheme prefix from the query string
+  static ({String scheme, String queryString}) _extractScheme(
+      String queryString) {
     var scheme = schemeHtml;
 
-    //remove scheme header
+    // Remove scheme header
     for (var s in [schemeJson, schemeHtml, schemeUrl, schemeTemplate]) {
       if (queryString.startsWith('$s:')) {
         scheme = s;
@@ -65,62 +66,46 @@ class QueryPart {
       }
     }
 
+    return (scheme: scheme, queryString: queryString);
+  }
+
+  /// Pre-encodes reserved parameter values to prevent URI parsing issues
+  static String _preEncodeReservedParameters(String queryString) {
     // Pre-encode selectors
     queryString = _encodeSelectorPart(queryString);
 
     // Negative lookahead pattern to prevent matching reserved parameter names
-    // This ensures we don't accidentally capture "&filter=", "&update=", etc. as part of a value
-    // Example: "transform=upper&filter=test" should capture "upper" not "upper&filter"
     const notLookAheadKeyWords =
-        '(?!&(?:$paramFilter|$paramUpdate|$paramTransform|$paramRegexp|$paramSave|$paramKeep)=)';
-
-    // Match any character (.) that is NOT followed by our reserved keywords
-    // This creates a pattern that captures parameter values up to (but not including) the next reserved parameter
+        '(?!&(?:$paramFilter|$paramUpdate|$paramTransform|$paramRegexp|$paramSave|$paramKeep)(?:=|&|\$))';
     const notLookAt = '(?:$notLookAheadKeyWords.)';
 
-    // Pre-encode transform values
-    // Matches "transform=" followed by any characters that don't start a new reserved parameter
-    final transformRegex = RegExp('$paramTransform=($notLookAt*)');
-    queryString = queryString.replaceAllMapped(transformRegex, (match) {
-      return '$paramTransform=${Uri.encodeQueryComponent(match.group(1)!)}';
-    });
+    // Helper to encode a parameter value
+    void encodeParam(String paramName) {
+      final regex = RegExp('$paramName=($notLookAt*)');
+      queryString = queryString.replaceAllMapped(regex, (match) {
+        return '$paramName=${Uri.encodeQueryComponent(match.group(1)!)}';
+      });
+    }
 
-    // Pre-encode filter values
-    // Matches "filter=" followed by any characters that don't start a new reserved parameter
-    final filterRegex = RegExp('$paramFilter=($notLookAt*)');
-    queryString = queryString.replaceAllMapped(filterRegex, (match) {
-      return '$paramFilter=${Uri.encodeQueryComponent(match.group(1)!)}';
-    });
+    // Pre-encode all reserved parameters
+    encodeParam(paramTransform);
+    encodeParam(paramFilter);
+    encodeParam(paramUpdate);
+    encodeParam(paramRegexp);
 
-    // Pre-encode update values
-    // Matches "update=" followed by any characters that don't start a new reserved parameter
-    final updateRegex = RegExp('$paramUpdate=($notLookAt*)');
-    queryString = queryString.replaceAllMapped(updateRegex, (match) {
-      return '$paramUpdate=${Uri.encodeQueryComponent(match.group(1)!)}';
-    });
+    // Save and keep use simpler pattern (stop at & or end)
+    for (var param in [paramSave, paramKeep]) {
+      final regex = RegExp('$param=([^&]*)');
+      queryString = queryString.replaceAllMapped(regex, (match) {
+        return '$param=${Uri.encodeQueryComponent(match.group(1)!)}';
+      });
+    }
 
-    // Pre-encode regexp values
-    // Matches "regexp=" followed by any characters that don't start a new reserved parameter
-    final regexpRegex = RegExp('$paramRegexp=($notLookAt*)');
-    queryString = queryString.replaceAllMapped(regexpRegex, (match) {
-      return '$paramRegexp=${Uri.encodeQueryComponent(match.group(1)!)}';
-    });
+    return queryString;
+  }
 
-    // Pre-encode save values (stop at & or end of string)
-    // Matches "save=" followed by any characters except "&" (which starts the next parameter)
-    // [^&]* means: match zero or more characters that are NOT "&"
-    // Example: "save=myVar&other=value" captures "myVar"
-    final saveRegex = RegExp('$paramSave=([^&]*)');
-    queryString = queryString.replaceAllMapped(saveRegex, (match) {
-      return '$paramSave=${Uri.encodeQueryComponent(match.group(1)!)}';
-    });
-
-    // Pre-encode keep values (stop at & or end of string)
-    final keepRegex = RegExp('$paramKeep=([^&]*)');
-    queryString = queryString.replaceAllMapped(keepRegex, (match) {
-      return '$paramKeep=${Uri.encodeQueryComponent(match.group(1)!)}';
-    });
-
+  /// Parses the query string as a URI and extracts the path
+  static ({Uri uri, String path}) _parseUri(String queryString, String scheme) {
     // Add dummy host if needed
     if (!queryString.contains('://')) {
       queryString = '$scheme://dummy/$queryString';
@@ -128,66 +113,91 @@ class QueryPart {
 
     final uri = Uri.parse(queryString);
     var path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
+
+    // Remove leading slash for url and template schemes
     if (path.startsWith('/') &&
         (scheme == schemeUrl || scheme == schemeTemplate)) {
       path = path.substring(1);
     }
 
+    return (uri: uri, path: path);
+  }
+
+  /// Extracts query parameters from the URI
+  static Map<String, List<String>> _extractQueryParameters(Uri uri) {
     final params = <String, List<String>>{};
+
     uri.queryParametersAll.forEach((key, values) {
       for (var value in values) {
-        if (key == paramTransform) {
-          if (params.containsKey(key)) {
-            params[key]!.addAll(_splitTransforms(value));
-          } else {
-            params[key] = _splitTransforms(value);
-          }
+        final parts = key == paramTransform
+            ? _splitTransforms(value)
+            : value.split(RegExp(r'(?<!\\);')); // Split on unescaped semicolons
+
+        if (params.containsKey(key)) {
+          params[key]!.addAll(parts);
         } else {
-          // Split on semicolons that are NOT preceded by a backslash (negative lookbehind)
-          // This allows escaped semicolons (\;) to be preserved in parameter values
-          final parts = value.split(RegExp(r'(?<!\\);'));
-          if (params.containsKey(key)) {
-            params[key]!.addAll(parts);
-          } else {
-            params[key] = parts;
-          }
+          params[key] = parts;
         }
       }
     });
 
+    return params;
+  }
+
+  /// Moves transform-related parameters from params to transforms map
+  static Map<String, List<String>> _moveParamsToTransforms(
+      Map<String, List<String>> params) {
     final transforms = <String, List<String>>{};
+
+    // Move transform parameter
     if (params.containsKey(paramTransform)) {
-      transforms[paramTransform] = params[paramTransform]!;
-      params.remove(paramTransform);
+      transforms[paramTransform] = params.remove(paramTransform)!;
     }
+
+    // Move regexp parameter and convert to transform format
     if (params.containsKey(paramRegexp)) {
       final regexps =
-          params[paramRegexp]!.map((e) => '$paramRegexp:$e').toList();
+          params.remove(paramRegexp)!.map((e) => '$paramRegexp:$e').toList();
+
       if (transforms.containsKey(paramTransform)) {
         transforms[paramTransform]!.addAll(regexps);
       } else {
         transforms[paramTransform] = regexps;
       }
-      params.remove(paramRegexp);
-    }
-    if (params.containsKey(paramUpdate)) {
-      transforms[paramUpdate] = params[paramUpdate]!;
-      params.remove(paramUpdate);
-    }
-    if (params.containsKey(paramFilter)) {
-      transforms[paramFilter] = params[paramFilter]!;
-      params.remove(paramFilter);
-    }
-    if (params.containsKey(paramSave)) {
-      transforms[paramSave] = params[paramSave]!;
-      params.remove(paramSave);
-    }
-    if (params.containsKey(paramKeep)) {
-      transforms[paramKeep] = params[paramKeep]!;
-      params.remove(paramKeep);
     }
 
-    // Validate parameters - check for unknown/typo parameters
+    // Move other transform-related parameters
+    for (var param in [paramUpdate, paramFilter, paramSave, paramKeep]) {
+      if (params.containsKey(param)) {
+        transforms[param] = params.remove(param)!;
+      }
+    }
+
+    return transforms;
+  }
+
+  static QueryPart parse(String queryString,
+      {required bool required, bool isPipe = false}) {
+    // Extract scheme
+    final schemeResult = _extractScheme(queryString);
+    final scheme = schemeResult.scheme;
+    queryString = schemeResult.queryString;
+
+    // Pre-encode reserved parameters
+    queryString = _preEncodeReservedParameters(queryString);
+
+    // Parse URI and extract path
+    final uriResult = _parseUri(queryString, scheme);
+    final uri = uriResult.uri;
+    final path = uriResult.path;
+
+    // Extract query parameters
+    final params = _extractQueryParameters(uri);
+
+    // Move transform-related params to transforms map
+    final transforms = _moveParamsToTransforms(params);
+
+    // Validate parameters
     _validateParameters(params, transforms, scheme);
 
     return QueryPart(scheme, path, params, transforms, required,
