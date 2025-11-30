@@ -11,7 +11,7 @@ abstract class JavaScriptExecutor {
   Future<dynamic> execute(String script);
 
   /// Extract variables from JavaScript code (async)
-  Future<Map<String, dynamic>> extractVariables(String script,
+  Future<Map<String, dynamic>?> extractVariables(String script,
       {List<String>? variableNames});
 
   /// Extract variables from JavaScript code (synchronous)
@@ -83,6 +83,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       ''';
       _runtime!.evaluate(clearScript);
       _log.fine('JavaScript globals cleared');
+      _initializeGlobals(_runtime!);
     } catch (e) {
       _log.warning('Error clearing globals: $e');
     }
@@ -105,6 +106,10 @@ class FlutterJsExecutor implements JavaScriptExecutor {
     final initScript = '''
       // Create window object as alias to globalThis
       var window = globalThis;
+      
+      // Add event listener mocks
+      window.addEventListener = function(event, handler, options) {};
+      window.removeEventListener = function(event, handler, options) {};
       
       // Create document mock object
       var document = {
@@ -237,10 +242,13 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   }
 
   @override
-  Future<Map<String, dynamic>> extractVariables(String script,
+  Future<Map<String, dynamic>?> extractVariables(String script,
       {List<String>? variableNames}) async {
     final result = extractVariablesSync(script, variableNames);
-    return result is Map<String, dynamic> ? result : {};
+    if (result == null) return null;
+    return (result is Map<String, dynamic> && result.isNotEmpty)
+        ? result
+        : null;
   }
 
   @override
@@ -251,7 +259,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       if (_consecutiveErrors >= _maxConsecutiveErrors) {
         _log.severe(
             'Too many consecutive errors ($_consecutiveErrors), stopping execution');
-        return {};
+        return null;
       }
 
       // Handle large scripts
@@ -264,7 +272,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
           _log.warning(
               'JavaScript script too large: ${processedScript.length} bytes (max: $maxScriptSize)');
           _consecutiveErrors++;
-          return {};
+          return null;
         }
       }
 
@@ -285,7 +293,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       if (captureScript.length > maxWrappedSize) {
         _log.warning(
             'Wrapped script too large: ${captureScript.length} bytes (max: $maxWrappedSize)');
-        return {};
+        return null;
       }
 
       // Execute the script with error handling
@@ -297,7 +305,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         _consecutiveErrors++;
         // Reset runtime on crash
         _resetRuntime();
-        return {};
+        return null;
       }
 
       if (result.isError) {
@@ -307,7 +315,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
           _log.warning(
               'JavaScript variable extraction error: ${result.stringResult}');
         }
-        return {};
+        return null;
       }
 
       // Success - reset error counter
@@ -319,14 +327,14 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       if (jsonResult.isEmpty ||
           jsonResult == 'undefined' ||
           jsonResult == 'null') {
-        return {};
+        return null;
       }
 
       // Check result size limit
       if (jsonResult.length > maxResultSize) {
         _log.warning(
             'JavaScript result too large: ${jsonResult.length} bytes (max: $maxResultSize)');
-        return {};
+        return null;
       }
 
       // Parse the JSON string
@@ -334,9 +342,16 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         final updatedJsonResult = jsonResult.replaceAll("undefined", '""');
         final parsed = jsonDecode(updatedJsonResult);
 
-        // If only one variable requested, return its value directly
+        // If result is empty map, return null (no variables found)
+        if (parsed is Map && parsed.isEmpty) {
+          return null;
+        }
+
+        // If only one variable requested (and not a wildcard), return its value directly
         if (variableNames != null &&
             variableNames.length == 1 &&
+            !variableNames.first.contains('*') &&
+            !variableNames.first.contains('?') &&
             parsed is Map) {
           return parsed[variableNames.first];
         }
@@ -344,13 +359,13 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         return parsed;
       } catch (e) {
         _log.warning('Failed to parse JSON result: $jsonResult, error: $e');
-        return {};
+        return null;
       }
     } catch (e) {
       _log.warning('Failed to extract variables: $e');
       // Reset runtime on any error
       _resetRuntime();
-      return {};
+      return null;
     }
   }
 
@@ -369,7 +384,78 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
   String _buildCaptureScript(String script, List<String>? variableNames) {
     if (variableNames != null && variableNames.isNotEmpty) {
-      // Capture specific variables
+      // Check if any variable name contains wildcard
+      final hasWildcard = variableNames.any((name) => name.contains('*'));
+
+      if (hasWildcard) {
+        // Use wildcard matching
+        final patterns = variableNames.map((name) {
+          // Convert wildcard pattern to regex
+          final regexPattern = name.replaceAll('*', '.*').replaceAll('?', '.');
+          return '"$regexPattern"';
+        }).join(', ');
+
+        return '''
+(function() {
+  // Use indirect eval to execute in global scope
+  (1, eval)(${_escapeScript(script)});
+  
+  // Custom JSON.stringify with circular reference handling
+  function safeStringify(obj, seen) {
+    seen = seen || new WeakSet();
+    
+    if (obj === null || obj === undefined) return JSON.stringify(obj);
+    if (typeof obj !== 'object') return JSON.stringify(obj);
+    
+    // Check for circular reference
+    if (seen.has(obj)) return JSON.stringify('[Circular]');
+    seen.add(obj);
+    
+    if (Array.isArray(obj)) {
+      var items = obj.map(function(item) {
+        return safeStringify(item, seen);
+      });
+      return '[' + items.join(',') + ']';
+    }
+    
+    var pairs = [];
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        try {
+          var value = safeStringify(obj[key], seen);
+          pairs.push(JSON.stringify(key) + ':' + value);
+        } catch (e) {
+          // Skip properties that can't be serialized
+        }
+      }
+    }
+    return '{' + pairs.join(',') + '}';
+  }
+  
+  // Wildcard matching
+  var patterns = [$patterns];
+  var __captured__ = {};
+  var allKeys = Object.keys(globalThis);
+  
+  for (var i = 0; i < allKeys.length; i++) {
+    var key = allKeys[i];
+    for (var j = 0; j < patterns.length; j++) {
+      var regex = new RegExp('^' + patterns[j] + '\$');
+      if (regex.test(key)) {
+        try {
+          __captured__[key] = globalThis[key];
+        } catch(e) {}
+        break;
+      }
+    }
+  }
+  
+  return safeStringify(__captured__);
+})();
+''';
+      }
+
+      // Capture specific variables (no wildcard)
       final captures = variableNames
           .map((name) =>
               '"$name": (typeof $name !== "undefined" ? $name : null)')
@@ -377,7 +463,8 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
       return '''
 (function() {
-  eval(${_escapeScript(script)});
+  // Use indirect eval to execute in global scope
+  (1, eval)(${_escapeScript(script)});
   
   // Custom JSON.stringify with circular reference handling
   function safeStringify(obj, seen) {

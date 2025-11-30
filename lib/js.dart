@@ -41,6 +41,14 @@
 /// final result = QueryString('script/@text?transform=jseval:config,userData')
 ///     .getValue(node);
 ///
+/// // Wildcard matching
+/// final flashvars = QueryString('script/@text?transform=jseval:flashvars_*')
+///     .getValue(node);
+///
+/// // Multiple patterns
+/// final data = QueryString('script/@text?transform=jseval:*_config,*_data')
+///     .getValue(node);
+///
 /// // Auto-detect (limited to global variables)
 /// final all = QueryString('script/@text?transform=jseval')
 ///     .getValue(node);

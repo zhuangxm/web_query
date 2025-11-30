@@ -16,10 +16,12 @@
 
 - **JavaScript Execution (jseval)**: Execute JavaScript code to extract variables from obfuscated scripts
   - Extract specific variables: `transform=jseval:var1,var2`
+  - Wildcard matching: `transform=jseval:flashvars_*,*_config`
   - Auto-detect variables: `transform=jseval` (no variable names)
-  - Browser globals support: `window`, `document`, `navigator`, `console`, `screen`, `atob`, `btoa`, etc.
+  - Browser globals support: `window`, `document`, `navigator`, `console`, `screen`, `atob`, `btoa`, `addEventListener`, etc.
   - Circular reference handling: Safely serializes objects with circular references
   - Error limiting: Stops after 10 consecutive errors to prevent crashes
+  - Indirect eval: Uses global scope for proper `var` detection
 
 - **Variable Substitution**: Use saved variables in query paths and regex patterns
   - Path substitution: `json:items/${id}` uses saved `id` variable
