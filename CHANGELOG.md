@@ -28,10 +28,6 @@
 ### Examples
 
 ```dart
-// Variable handling - Before (0.4.0)
-'json:firstName?save=fn&discard ++ json:lastName?save=ln&discard ++ template:${fn} ${ln}'
-// Result: "Alice Smith"
-
 // Variable handling - After (0.5.0) - cleaner!
 'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
 // Result: "Alice Smith"
