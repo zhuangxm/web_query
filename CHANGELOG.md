@@ -14,15 +14,33 @@
   - Wildcard matching: `transform=json:*Config*` matches `var myConfig = {...}`
   - Supports multiple formats: `window.__DATA__`, `var data`, etc.
 
+- **JavaScript Execution (jseval)**: Execute JavaScript code to extract variables from obfuscated scripts
+  - Extract specific variables: `transform=jseval:var1,var2`
+  - Auto-detect variables: `transform=jseval` (no variable names)
+  - Browser globals support: `window`, `document`, `navigator`, `console`, etc.
+  - Circular reference handling: Safely serializes objects with circular references
+
 - **Variable Substitution**: Use saved variables in query paths and regex patterns
   - Path substitution: `json:items/${id}` uses saved `id` variable
   - Regex substitution: `regexp:/${pattern}/replacement/` uses saved `pattern` variable
   - Template scheme: `template:${var1} ${var2}` combines multiple variables
 
+- **Query Validation**: Added parameter validation with helpful error messages
+  - Catches typos in parameter names
+  - Validates transform formats
+  - Suggests correct parameter names
+
 ### Improvements
 
 - **Cleaner Template Syntax**: Templates no longer cluttered with intermediate values by default
 - **More Intuitive**: Auto-discard matches common use case (extract data for templates)
+- **JavaScript Safety**: Large script protection prevents crashes
+  - Configurable size limits (default: 1MB script, 10MB result)
+  - Optional truncation for oversized scripts
+  - Smart runtime reset: Only resets when query uses jseval
+  - Fresh runtime per QueryString.execute() prevents variable pollution
+  - Reuses runtime within same query for efficiency
+  - Automatic cleanup on errors
 - **Better Documentation**: Updated README, code docs, and added migration guide
 
 ### Examples

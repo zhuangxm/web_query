@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:html/dom.dart';
 
 import 'src/html_query.dart';
+import 'src/js_executor.dart';
 import 'src/json_query.dart';
 import 'src/page_data.dart';
 import 'src/query_part.dart';
@@ -169,7 +170,31 @@ class QueryString extends DataPicker {
             .toList();
 
   dynamic execute(PageNode node, {bool simplify = true}) {
+    // Reset JavaScript runtime only if query uses jseval
+    if (_usesJseval()) {
+      _resetJsRuntime();
+    }
     return _executeQueries(node, simplify);
+  }
+
+  bool _usesJseval() {
+    // Check if any query part uses jseval transform
+    for (var query in _queries) {
+      if (query.transforms.containsKey('transform')) {
+        final transforms = query.transforms['transform']!;
+        if (transforms.any((t) => t.startsWith('jseval'))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _resetJsRuntime() {
+    // Reset the JavaScript executor if configured
+    if (JsExecutorRegistry.isConfigured) {
+      JsExecutorRegistry.instance?.reset();
+    }
   }
 
   dynamic _executeQueries(PageNode node, bool simplify) {

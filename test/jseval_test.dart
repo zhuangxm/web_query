@@ -249,5 +249,61 @@ void main() {
       expect(map['width'], 1920);
       expect(map['height'], 1080);
     });
+
+    test('handles large scripts gracefully', () {
+      // Create a large script (over 1MB)
+      final largeData = List.filled(2 * 1024 * 1024, 'x').join();
+      final html = '''
+      <html>
+        <script>
+          var largeData = "$largeData";
+          var test = "value";
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      // Should not crash, returns empty or null due to size limit
+      final result =
+          QueryString('script/@text?transform=jseval:test').execute(node);
+
+      // Large script should be rejected
+      expect(result, anyOf(isNull, equals({}), isEmpty));
+    });
+
+    test('truncate large scripts when enabled', () {
+      // Configure executor with truncation
+      final executor = FlutterJsExecutor(
+        maxScriptSize: 200,
+        truncateLargeScripts: true,
+      );
+      configureJsExecutor(executor);
+
+      const html = '''
+      <html>
+        <script>
+          var test = "hello";
+          // Add lots of extra code that will be truncated
+          var unused1 = "data1";
+          var unused2 = "data2";
+          var unused3 = "data3";
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      // Should extract from truncated script
+      final result =
+          QueryString('script/@text?transform=jseval:test').execute(node);
+
+      expect(result, 'hello');
+
+      // Reset to default executor
+      configureJsExecutor(FlutterJsExecutor());
+    });
   });
 }

@@ -16,11 +16,29 @@ abstract class JavaScriptExecutor {
 
   /// Extract variables from JavaScript code (synchronous)
   dynamic extractVariablesSync(String script, List<String>? variableNames);
+
+  /// Reset the runtime to start fresh (call once per QueryString.execute())
+  void reset();
 }
 
 /// Default implementation using flutter_js
 class FlutterJsExecutor implements JavaScriptExecutor {
   JavascriptRuntime? _runtime;
+
+  /// Maximum script size in bytes (default: 1MB)
+  final int maxScriptSize;
+
+  /// Maximum result size in bytes (default: 10MB)
+  final int maxResultSize;
+
+  /// Whether to truncate large scripts instead of rejecting them
+  final bool truncateLargeScripts;
+
+  FlutterJsExecutor({
+    this.maxScriptSize = 1024 * 1024, // 1MB
+    this.maxResultSize = 10 * 1024 * 1024, // 10MB
+    this.truncateLargeScripts = false,
+  });
 
   /// Get or create runtime with initialized globals
   JavascriptRuntime _getRuntime() {
@@ -33,7 +51,11 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
   /// Reset the runtime by disposing and creating a new one
   void _resetRuntime() {
-    _runtime?.dispose();
+    try {
+      _runtime?.dispose();
+    } catch (e) {
+      _log.warning('Error disposing runtime: $e');
+    }
     _runtime = null;
   }
 
@@ -118,12 +140,25 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
   @override
   Future<dynamic> execute(String script) async {
+    var processedScript = script;
     try {
-      // Reset runtime for fresh execution
-      _resetRuntime();
+      // Handle large scripts
+      if (processedScript.length > maxScriptSize) {
+        if (truncateLargeScripts) {
+          _log.warning(
+              'JavaScript script truncated from ${processedScript.length} to $maxScriptSize bytes');
+          processedScript = processedScript.substring(0, maxScriptSize);
+        } else {
+          _log.warning(
+              'JavaScript script too large: ${processedScript.length} bytes (max: $maxScriptSize)');
+          return null;
+        }
+      }
+
+      // Use existing runtime (reset should be called once per QueryString.execute())
       final runtime = _getRuntime();
 
-      final result = runtime.evaluate(script);
+      final result = runtime.evaluate(processedScript);
       if (result.isError) {
         _log.warning('JavaScript execution error: ${result.stringResult}');
         return null;
@@ -144,13 +179,26 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
   @override
   dynamic extractVariablesSync(String script, List<String>? variableNames) {
+    var processedScript = script;
     try {
-      // Reset runtime for fresh execution
-      _resetRuntime();
+      // Handle large scripts
+      if (processedScript.length > maxScriptSize) {
+        if (truncateLargeScripts) {
+          _log.warning(
+              'JavaScript script truncated from ${processedScript.length} to $maxScriptSize bytes');
+          processedScript = processedScript.substring(0, maxScriptSize);
+        } else {
+          _log.warning(
+              'JavaScript script too large: ${processedScript.length} bytes (max: $maxScriptSize)');
+          return {};
+        }
+      }
+
+      // Use existing runtime (reset should be called once per QueryString.execute())
       final runtime = _getRuntime();
 
       // Build the capture script
-      final captureScript = _buildCaptureScript(script, variableNames);
+      final captureScript = _buildCaptureScript(processedScript, variableNames);
 
       // Execute the script
       final result = runtime.evaluate(captureScript);
@@ -166,6 +214,13 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       if (jsonResult.isEmpty ||
           jsonResult == 'undefined' ||
           jsonResult == 'null') {
+        return {};
+      }
+
+      // Check result size limit
+      if (jsonResult.length > maxResultSize) {
+        _log.warning(
+            'JavaScript result too large: ${jsonResult.length} bytes (max: $maxResultSize)');
         return {};
       }
 
@@ -189,6 +244,11 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       _log.warning('Failed to extract variables: $e');
       return {};
     }
+  }
+
+  @override
+  void reset() {
+    _resetRuntime();
   }
 
   /// Dispose the JavaScript runtime

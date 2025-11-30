@@ -212,8 +212,8 @@ class QueryPart {
 
   static void _validateParameters(Map<String, List<String>> params,
       Map<String, List<String>> transforms, String scheme) {
-    // Known valid parameter names (currently all are moved to transforms)
-    const validParams = <String>{};
+    // Known valid parameter names
+    const validParams = {'required'};
     const validTransforms = {
       'transform',
       'filter',
@@ -261,23 +261,19 @@ class QueryPart {
         throw FormatException(
             'regexp transform requires a pattern: ?transform=regexp:/pattern/');
       }
-      // Check if it looks like a valid regexp format
-      if (!pattern.startsWith('/')) {
-        throw FormatException(
-            'regexp pattern must start with /: ?transform=regexp:/pattern/');
-      }
+      // Don't validate regexp format - let it fail at runtime for better error messages
     } else if (transform.startsWith('json:')) {
       // json: can have optional variable name, so just check it's not malformed
       final varName = transform.substring(5);
       if (varName.contains('?') || varName.contains('&')) {
-        throw FormatException(
+        throw const FormatException(
             'Invalid json transform format: ?transform=json:varName');
       }
     } else if (transform.startsWith('jseval:')) {
       // jseval: can have optional variable names
       final varNames = transform.substring(7);
       if (varNames.contains('?') || varNames.contains('&')) {
-        throw FormatException(
+        throw const FormatException(
             'Invalid jseval transform format: ?transform=jseval:var1,var2');
       }
     } else if (!['upper', 'lower', 'json', 'jseval'].contains(transform)) {

@@ -3,12 +3,23 @@
 /// This library provides JavaScript execution capabilities for extracting
 /// variables from obfuscated or eval-based JavaScript code.
 ///
+/// The JavaScript runtime is reset only when a query uses jseval transforms,
+/// and only once per QueryString.execute() call. This prevents variable
+/// pollution between queries while maximizing efficiency.
+///
 /// Usage:
 /// ```dart
 /// import 'package:web_query/js.dart';
 ///
-/// // Configure the executor
-/// JsExecutorRegistry.instance = FlutterJsExecutor();
+/// // Basic configuration
+/// configureJsExecutor(FlutterJsExecutor());
+///
+/// // Configure with custom limits
+/// configureJsExecutor(FlutterJsExecutor(
+///   maxScriptSize: 2 * 1024 * 1024,  // 2MB script limit
+///   maxResultSize: 20 * 1024 * 1024, // 20MB result limit
+///   truncateLargeScripts: true,       // Truncate instead of reject
+/// ));
 ///
 /// // Use in queries
 /// final result = QueryString('script/@text?transform=jseval:config,data')
