@@ -497,4 +497,78 @@ void main() {
       expect(query.execute(testNode), equals("中文;"));
     });
   });
+
+  group('Reserved Parameter Encoding', () {
+    test('parameters are properly parsed without errors', () {
+      // Test that all reserved parameters can be parsed without throwing errors
+      expect(() => QueryString('h1/@text?save=myVar'), returnsNormally);
+      expect(() => QueryString('h1/@text?keep=true'), returnsNormally);
+      expect(() => QueryString('h1/@text?keep=false'), returnsNormally);
+      expect(() => QueryString('h1/@text?filter=test'), returnsNormally);
+      expect(() => QueryString('json://meta?update={"key":"value"}'),
+          returnsNormally);
+      expect(() => QueryString('h1/@text?regexp=/a/b/'), returnsNormally);
+    });
+
+    test('reserved parameters work with transforms', () {
+      // Test transform still works when combined with other reserved parameters
+      final query1 = QueryString('h1/@text?transform=upper');
+      expect(query1.execute(testNode), equals('TITLE'));
+
+      // Adding keep parameter shouldn't break transform
+      final query2 = QueryString('h1/@text?keep=true&transform=upper');
+      expect(query2.execute(testNode), equals('TITLE'));
+    });
+
+    test('filter parameter works correctly', () {
+      // Test filter parameter functionality - basic case
+      final query1 = QueryString('.content/*p/@text?filter=First');
+      final result1 = query1.execute(testNode);
+      expect(result1, equals('First paragraph'));
+    });
+
+    test('regexp parameter works correctly', () {
+      // Test regexp parameter - it's converted to transform internally
+      final query1 = QueryString('h1/@text?regexp=/Title/Header/');
+      final result1 = query1.execute(testNode);
+      expect(result1, equals('Header'));
+
+      // Regexp with transform - apply transform first, then regexp
+      final query2 =
+          QueryString('h1/@text?transform=upper&regexp=/TITLE/HEADER/');
+      final result2 = query2.execute(testNode);
+      expect(result2, equals('HEADER'));
+    });
+
+    test('update parameter works correctly', () {
+      // Test update parameter
+      final query1 = QueryString('json://meta?update={"newKey":"value"}');
+      final result1 = query1.execute(testNode);
+      expect(result1, isNotNull);
+      if (result1 is Map) {
+        expect(result1, containsPair('newKey', 'value'));
+        expect(result1, containsPair('title', 'JSON Title'));
+      }
+    });
+
+    test('transforms work correctly with reserved parameters', () {
+      // Verify that basic transforms still work
+      final query1 = QueryString('h1/@text?transform=upper');
+      expect(query1.execute(testNode), equals('TITLE'));
+
+      // Verify regexp transform works
+      final query2 = QueryString('h1/@text?transform=regexp:/Title/Header/');
+      expect(query2.execute(testNode), equals('Header'));
+    });
+
+    test('multiple parameters can coexist', () {
+      // Test that multiple reserved parameters can be used together
+      expect(() => QueryString('h1/@text?transform=upper&save=var1&keep=true'),
+          returnsNormally);
+
+      // And they should still produce correct results
+      final query = QueryString('h1/@text?transform=upper&keep=true');
+      expect(query.execute(testNode), equals('TITLE'));
+    });
+  });
 }

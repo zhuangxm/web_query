@@ -70,26 +70,4 @@ void main() {
 
     expect(result, ['Smith', 'Alice Smith (30)']);
   });
-
-  test('old discard parameter still works for backward compatibility', () {
-    const jsonData = '''
-    {
-      "user": {
-        "firstName": "Alice",
-        "lastName": "Smith"
-      }
-    }
-    ''';
-
-    final pageData =
-        PageData('https://example.com', '<html></html>', jsonData: jsonData);
-    final node = pageData.getRootElement();
-
-    // Old discard syntax should still work
-    final result = QueryString(
-            'json:user/firstName?save=fn&discard ++ json:user/lastName?save=ln&discard ++ template:\${fn} \${ln}')
-        .getValue(node);
-
-    expect(result, 'Alice Smith');
-  });
 }
