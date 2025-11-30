@@ -456,15 +456,20 @@ Save intermediate results and combine them using templates:
 'regexp:/${pattern}/replacement/'
 'template:Title: ${t}'
 
-// Combine results
+// Combine results (save auto-discards intermediate values)
 'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
-// Result: "Alice Smith" (along with "Alice" and "Smith")
+// Result: "Alice Smith" (intermediate values auto-discarded)
 
-// Discard intermediate results (only return template when using getValue)
-'json:firstName?save=fn&discard ++ json:lastName?save=ln&discard ++ template:${fn} ${ln}'
-// getValue() → "Alice Smith" (discarded items filtered out)
-// getCollection() → [PageNode(Alice), PageNode(Smith), PageNode(Alice Smith)]
+// Keep intermediate results with &keep
+'json:firstName?save=fn&keep ++ json:lastName?save=ln&keep ++ template:${fn} ${ln}'
+// Result: ["Alice", "Smith", "Alice Smith"]
+
+// Selective keeping
+'json:firstName?save=fn ++ json:lastName?save=ln&keep ++ template:${fn} ${ln}'
+// Result: ["Smith", "Alice Smith"] (only lastName and template kept)
 ```
+
+**Note:** When using `?save=`, results are automatically omitted from the final output unless you add `&keep`. This makes templates cleaner by default.
 
 ### Filters
 

@@ -194,6 +194,10 @@ class QueryPart {
       transforms['save'] = params['save']!;
       params.remove('save');
     }
+    if (params.containsKey('keep')) {
+      transforms['keep'] = params['keep']!;
+      params.remove('keep');
+    }
     if (params.containsKey('discard')) {
       transforms['discard'] = params['discard']!;
       params.remove('discard');

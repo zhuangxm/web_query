@@ -73,6 +73,8 @@ abstract class DataPicker {
 ///
 /// Query parameters:
 /// - `?transform=op1;op2;op3` - Multiple transforms separated by semicolons
+/// - `?save=varName` - Save result to variable (auto-discards from output)
+/// - `?save=varName&keep` - Save result to variable and keep in output
 ///
 /// Available transforms:
 /// - `upper` - Uppercase
@@ -85,6 +87,13 @@ abstract class DataPicker {
 /// - `filter=!word` - Must NOT contain "word"
 /// - `filter=a b` - Must contain "a" AND "b"
 /// - `filter=a\ b` - Must contain "a b" (escaped space)
+///
+/// Variables and Templates:
+/// - `?save=varName` - Save result to variable (automatically omitted from output)
+/// - `?save=varName&keep` - Save result and keep in output
+/// - `template:${varName}` - Use saved variables in template
+/// - Variables can be used in paths: `json:items/${id}`
+/// - Variables can be used in regex: `regexp:/${pattern}/replacement/`
 ///
 /// RegExp variables:
 /// - `${pageUrl}` - Current page URL
@@ -117,6 +126,14 @@ abstract class DataPicker {
 ///
 /// // Multiple transform
 /// '*p/@text?&transform=upper;lowercase'
+///
+/// // Variables and templates (save auto-discards)
+/// 'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
+/// // Result: "Alice Smith" (intermediate values omitted)
+///
+/// // Keep intermediate values
+/// 'json:firstName?save=fn&keep ++ json:lastName?save=ln&keep ++ template:${fn} ${ln}'
+/// // Result: ["Alice", "Smith", "Alice Smith"]
 ///
 /// // Force all matches
 /// '*p/@text'               // All paragraphs
@@ -185,7 +202,8 @@ class QueryString extends DataPicker {
                         : (item is String && query.scheme == 'json')
                             ? _tryParseJson(node, item)
                             : PageNode(node.pageData, jsonData: item);
-            final subResult = _executeSingleQueryWithDiscard(query, itemNode, variables, hasMultipleQueries);
+            final subResult = _executeSingleQueryWithDiscard(
+                query, itemNode, variables, hasMultipleQueries);
             pipedData.addAll(subResult.data);
           }
           result_ = QueryResult(pipedData);
@@ -193,18 +211,18 @@ class QueryString extends DataPicker {
         // Replace result with piped result
         result = result_;
       } else {
-        result_ = _executeSingleQueryWithDiscard(query, node, variables, hasMultipleQueries);
+        result_ = _executeSingleQueryWithDiscard(
+            query, node, variables, hasMultipleQueries);
         result = result.combine(result_);
       }
     }
 
     //_log.fine("execute queries result: $result");
-    
+
     // Always filter out discarded items and unwrap kept items
-    result = QueryResult(result.data
-        .where((e) => e is! DiscardMarker)
-        .toList());
-    
+    result =
+        QueryResult(result.data.where((e) => e is! DiscardMarker).toList());
+
     return !simplify
         ? result.data.map((e) => e is Element
             ? PageNode(node.pageData, element: e)
@@ -220,7 +238,9 @@ class QueryString extends DataPicker {
     if (variables.isEmpty) return input;
     return input.replaceAllMapped(RegExp(r'\$\{(\w+)\}'), (match) {
       final key = match.group(1);
-      return variables.containsKey(key) ? variables[key].toString() : match.group(0)!;
+      return variables.containsKey(key)
+          ? variables[key].toString()
+          : match.group(0)!;
     });
   }
 
@@ -228,7 +248,7 @@ class QueryString extends DataPicker {
       QueryPart query, PageNode node, Map<String, dynamic> variables) {
     // Resolve variables in path
     final resolvedPath = _resolveString(query.path, variables);
-    
+
     //_log.fine("execute query: $query");
     if (query.scheme == 'template') {
       return QueryResult([resolvedPath]);
@@ -244,20 +264,25 @@ class QueryString extends DataPicker {
       result = query.scheme == 'json'
           ? applyJsonPathFor(node.jsonData, resolvedPath)
           : query.scheme == 'url'
-              ? applyUrlPathFor(node, query) // url query might need resolved path too but it uses query object
-              : applyHtmlPathFor(node.element, 
+              ? applyUrlPathFor(node,
+                  query) // url query might need resolved path too but it uses query object
+              : applyHtmlPathFor(
+                  node.element,
                   // Create a temporary query part with resolved path for HTML query
-                  QueryPart(query.scheme, resolvedPath, query.parameters, query.transforms, query.required, isPipe: query.isPipe));
+                  QueryPart(query.scheme, resolvedPath, query.parameters,
+                      query.transforms, query.required,
+                      isPipe: query.isPipe));
     } else {
       result = query.scheme == 'url'
           ? applyUrlPathFor(node, query)
           : QueryResult(node);
     }
-    
+
     // Resolve variables in transforms
     final resolvedTransforms = <String, List<String>>{};
     query.transforms.forEach((key, values) {
-      resolvedTransforms[key] = values.map((v) => _resolveString(v, variables)).toList();
+      resolvedTransforms[key] =
+          values.map((v) => _resolveString(v, variables)).toList();
     });
 
     //_log.fine("execute query result before transform: $result");
@@ -266,19 +291,22 @@ class QueryString extends DataPicker {
         .where(
             (e) => e != null && e != 'null' && e.toString().trim().isNotEmpty)
         .toList());
-    
+
     return result;
   }
 
-  QueryResult _executeSingleQueryWithDiscard(
-      QueryPart query, PageNode node, Map<String, dynamic> variables, bool shouldDiscardByDefault) {
+  QueryResult _executeSingleQueryWithDiscard(QueryPart query, PageNode node,
+      Map<String, dynamic> variables, bool shouldDiscardByDefault) {
     var result = _executeSingleQuery(query, node, variables);
-    
-    // Discard results by default in multi-query chains unless 'keep' is specified
-    if (shouldDiscardByDefault && !query.transforms.containsKey('keep')) {
+
+    // Auto-discard when 'save' is present unless 'keep' is also present
+    final hasSave = query.transforms.containsKey('save');
+    final hasKeep = query.transforms.containsKey('keep');
+
+    if (hasSave && !hasKeep) {
       result = QueryResult(result.data.map((e) => DiscardMarker(e)).toList());
     }
-    
+
     return result;
   }
 
