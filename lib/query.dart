@@ -9,8 +9,6 @@ import 'src/transforms.dart';
 import 'src/url_query.dart';
 
 export 'src/page_data.dart';
-export 'src/query_part.dart';
-export 'src/query_result.dart';
 
 abstract class DataPicker {
   Iterable<PageNode> getCollection(PageNode node);

@@ -12,6 +12,7 @@
   - `HtmlTreeView`: Interactive collapsible HTML tree viewer
   - `DataQueryWidget`: Complete data reader widget with HTML/JSON views and query filtering
   - `filterHtmlOnly()` and `filterHtml()`: Utility functions with optional unwanted selectors
+  - **JSON Transform**: Added `json` transform to extract JSON from `<script>` tags and JavaScript variables
 
 - **Modular Architecture**:
   - Extracted UI utilities into `html_utils.dart`, `html_tree_view.dart`, `json_tree_view.dart`

@@ -200,6 +200,9 @@ class HomePage extends HookWidget {
     }
   }
   </script>
+  <script>
+        window.__INITIAL_STATE__ = {"user": {"id": 123, "name": "Bob"}};
+  </script>
 </body>
 </html>
 ''';

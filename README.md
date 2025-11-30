@@ -367,6 +367,22 @@ Use `?regexp=` as a shorthand for `?transform=regexp:`:
 // "hello  world" → "HI WORLD"
 ```
 
+#### JSON Transform
+
+Extract JSON data from `<script>` tags or JavaScript variables:
+
+```dart
+// Extract from <script type="application/json">
+'script#data/@text?transform=json'
+
+// Extract from JavaScript variable
+'script/@text?transform=json:config'          // var config = {...}
+'script/@text?transform=json:window.__DATA__' // window.__DATA__ = {...}
+
+// Chain with JSON query
+'script#data/@text?transform=json++json:items/0/title'
+```
+
 ### Filters
 
 Filters remove unwanted results based on content:

@@ -40,13 +40,57 @@ dynamic applyTransform(PageNode node, dynamic value, String transform) {
     return applyRegexpTransform(node, value, transform.substring(7));
   }
 
+  if (transform.startsWith('json:')) {
+    return applyJsonTransform(value, transform.substring(5));
+  }
+
   switch (transform) {
     case 'upper':
       return value.toString().toUpperCase();
     case 'lower':
       return value.toString().toLowerCase();
+    case 'json':
+      return applyJsonTransform(value, null);
     default:
       return value;
+  }
+}
+
+dynamic applyJsonTransform(dynamic value, String? varName) {
+  if (value == null) return null;
+
+  var text = value.toString().trim();
+
+  // If varName is provided, extract the JSON from JavaScript variable assignment
+  if (varName != null && varName.isNotEmpty) {
+    // Match patterns like: var config = {...}; or window.__DATA__ = {...};
+    final patterns = [
+      RegExp('$varName\\s*=\\s*({[\\s\\S]*?});', multiLine: true),
+      RegExp('$varName\\s*=\\s*(\\[[\\s\\S]*?\\]);', multiLine: true),
+    ];
+
+    bool found = false;
+
+    for (var pattern in patterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null && match.groupCount >= 1) {
+        text = match.group(1)!;
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      return null;
+    }
+  }
+
+  // Try to parse as JSON
+  try {
+    return json.jsonDecode(text);
+  } catch (e) {
+    _log.warning('Failed to parse JSON: $e');
+    return null;
   }
 }
 
