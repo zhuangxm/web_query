@@ -2,11 +2,13 @@ class QueryPart {
   final String scheme;
   final String path;
   final bool required;
+  final bool isPipe;
   final Map<String, List<String>> parameters;
   final Map<String, List<String>> transforms;
 
   QueryPart(
-      this.scheme, this.path, this.parameters, this.transforms, this.required);
+      this.scheme, this.path, this.parameters, this.transforms, this.required,
+      {this.isPipe = false});
 
   static String _encodeSelectorPart(String part) {
     // Encode # in selectors but preserve in query params
@@ -82,7 +84,8 @@ class QueryPart {
     return -1;
   }
 
-  static QueryPart parse(String queryString, {required bool required}) {
+  static QueryPart parse(String queryString,
+      {required bool required, bool isPipe = false}) {
     var scheme = 'html';
     if (queryString.startsWith('json:')) {
       scheme = 'json';
@@ -92,6 +95,9 @@ class QueryPart {
     } else if (queryString.startsWith('url:')) {
       scheme = 'url';
       queryString = queryString.substring(4);
+    } else if (queryString.startsWith('template:')) {
+      scheme = 'template';
+      queryString = queryString.substring(9);
     }
 
     // Pre-encode selectors
@@ -125,6 +131,13 @@ class QueryPart {
       return 'regexp=${Uri.encodeQueryComponent(match.group(1)!)}';
     });
 
+    // Pre-encode save values
+    final saveRegex =
+        RegExp(r'save=((?:(?!&(?:filter|update|transform|regexp|save)=).)*)');
+    queryString = queryString.replaceAllMapped(saveRegex, (match) {
+      return 'save=${Uri.encodeQueryComponent(match.group(1)!)}';
+    });
+
     // Add dummy host if needed
     if (!queryString.contains('://')) {
       queryString = '$scheme://dummy/$queryString';
@@ -132,7 +145,7 @@ class QueryPart {
 
     final uri = Uri.parse(queryString);
     var path = Uri.decodeFull(uri.path.replaceFirst('/dummy/', ''));
-    if (path.startsWith('/') && scheme == 'url') {
+    if (path.startsWith('/') && (scheme == 'url' || scheme == 'template')) {
       path = path.substring(1);
     }
 
@@ -178,8 +191,13 @@ class QueryPart {
       transforms['filter'] = params['filter']!;
       params.remove('filter');
     }
+    if (params.containsKey('save')) {
+      transforms['save'] = params['save']!;
+      params.remove('save');
+    }
 
-    return QueryPart(scheme, path, params, transforms, required);
+    return QueryPart(scheme, path, params, transforms, required,
+        isPipe: isPipe);
   }
 
   bool isRequired() {
@@ -188,6 +206,6 @@ class QueryPart {
 
   @override
   String toString() {
-    return "QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms, required: $required)";
+    return "QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms, required: $required, isPipe: $isPipe)";
   }
 }

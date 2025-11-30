@@ -381,6 +381,51 @@ Extract JSON data from `<script>` tags or JavaScript variables:
 
 // Chain with JSON query
 'script#data/@text?transform=json++json:items/0/title'
+
+// Wildcard variable matching
+'script/@text?transform=json:*Config*'        // Matches var myConfig = ...
+```
+
+#### Query Piping (`>>`)
+
+Pass the output of one query as the input to the next:
+
+```dart
+// Get container -> Get paragraphs -> Get text
+'.container >> *p >> @text'
+
+// Get JSON items -> Get tags -> Flatten all tags
+'json:items/* >> json:tags/*'
+```
+
+#### Special Selectors
+
+- **`@keys`**: Get keys of a JSON object
+  ```dart
+  'json:users/@keys' // Returns ["alice", "bob"]
+  ```
+
+- **`$`**: Select current value (useful in chains or JSON paths)
+  ```dart
+  'json:items/*/$' // Get list of items
+  ```
+
+#### Variables and Templates
+
+Save intermediate results and combine them using templates:
+
+```dart
+// Save variable
+'json:title?save=t'
+
+// Use variable in path, regex, or template
+'json:items/${id}'
+'regexp:/${pattern}/replacement/'
+'template:Title: ${t}'
+
+// Combine results
+'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
+// Result: "Alice Smith"
 ```
 
 ### Filters

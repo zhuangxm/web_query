@@ -129,21 +129,23 @@ class QueryString extends DataPicker {
 
   QueryString(this.query)
       : _queries = (query ?? "")
-            .splitKeep(RegExp(r'(\|\||\+\+)'))
+            .splitKeep(RegExp(r'(\|\||\+\+|>>(?!=))'))
             .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
-            .fold((true, <QueryPart>[]), (result, v) {
-              final (required, l) = result;
+            .fold((true, false, <QueryPart>[]), (result, v) {
+              final (required, isPipe, l) = result;
               if (v == '||') {
-                return (false, l);
+                return (false, false, l);
               } else if (v == '++') {
-                return (true, l);
+                return (true, false, l);
+              } else if (v == '>>') {
+                return (true, true, l);
               } else {
-                l.add(QueryPart.parse(v, required: required));
-                return (required, l);
+                l.add(QueryPart.parse(v, required: required, isPipe: isPipe));
+                return (required, false, l);
               }
             })
-            .$2
+            .$3
             .toList();
 
   dynamic execute(PageNode node, {bool simplify = true}) {
@@ -152,17 +154,40 @@ class QueryString extends DataPicker {
 
   dynamic _executeQueries(PageNode node, bool simplify) {
     QueryResult result = QueryResult([]);
+    final variables = <String, dynamic>{};
 
     for (var i = 0; i < _queries.length; i++) {
       var query = _queries[i];
-      // Skip if previous query succeeded and this isn't required
-      if (result.data.isNotEmpty && !query.isRequired()) {
+      // Skip if previous query succeeded and this isn't required (and not a pipe)
+      if (result.data.isNotEmpty && !query.isRequired() && !query.isPipe) {
         continue;
       }
-      var result_ = _executeSingleQuery(query, node);
-      //_log.fine("result_: $result_");
-      result = result.combine(result_);
-      //_log.fine("result: $result");
+
+      QueryResult result_;
+      if (query.isPipe) {
+        // Pipe previous result as input to this query
+        if (result.data.isEmpty) {
+          result_ = QueryResult([]);
+        } else {
+          // Execute query on each item from previous result
+          final pipedData = <dynamic>[];
+          for (var item in result.data) {
+            final itemNode = item is PageNode
+                ? item
+                : item is Element
+                    ? PageNode(node.pageData, element: item)
+                    : PageNode(node.pageData, jsonData: item);
+            final subResult = _executeSingleQuery(query, itemNode, variables);
+            pipedData.addAll(subResult.data);
+          }
+          result_ = QueryResult(pipedData);
+        }
+        // Replace result with piped result
+        result = result_;
+      } else {
+        result_ = _executeSingleQuery(query, node, variables);
+        result = result.combine(result_);
+      }
     }
 
     //_log.fine("execute queries result: $result");
@@ -177,33 +202,53 @@ class QueryString extends DataPicker {
                 : result.data;
   }
 
-  // String _decodePath(Uri uri) {
-  //   // Decode full path to handle escaped characters
-  //   return Uri.decodeFull(uri.path);
-  // }
+  String _resolveString(String input, Map<String, dynamic> variables) {
+    if (variables.isEmpty) return input;
+    return input.replaceAllMapped(RegExp(r'\$\{(\w+)\}'), (match) {
+      final key = match.group(1);
+      return variables.containsKey(key) ? variables[key].toString() : match.group(0)!;
+    });
+  }
 
-  QueryResult _executeSingleQuery(QueryPart query, PageNode node) {
+  QueryResult _executeSingleQuery(
+      QueryPart query, PageNode node, Map<String, dynamic> variables) {
+    // Resolve variables in path
+    final resolvedPath = _resolveString(query.path, variables);
+    
     //_log.fine("execute query: $query");
+    if (query.scheme == 'template') {
+      return QueryResult([resolvedPath]);
+    }
+
     if (!['json', 'html', 'url'].contains(query.scheme)) {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
 
     QueryResult result = QueryResult([]);
-    if (query.path.isNotEmpty) {
+    if (resolvedPath.isNotEmpty) {
       //final decodedPath = _decodePath(Uri.parse(query.path));
       result = query.scheme == 'json'
-          ? applyJsonPathFor(node.jsonData, query.path)
+          ? applyJsonPathFor(node.jsonData, resolvedPath)
           : query.scheme == 'url'
-              ? applyUrlPathFor(node, query)
-              : applyHtmlPathFor(node.element, query);
+              ? applyUrlPathFor(node, query) // url query might need resolved path too but it uses query object
+              : applyHtmlPathFor(node.element, 
+                  // Create a temporary query part with resolved path for HTML query
+                  QueryPart(query.scheme, resolvedPath, query.parameters, query.transforms, query.required, isPipe: query.isPipe));
     } else {
       result = query.scheme == 'url'
           ? applyUrlPathFor(node, query)
           : QueryResult(node);
     }
+    
+    // Resolve variables in transforms
+    final resolvedTransforms = <String, List<String>>{};
+    query.transforms.forEach((key, values) {
+      resolvedTransforms[key] = values.map((v) => _resolveString(v, variables)).toList();
+    });
+
     //_log.fine("execute query result before transform: $result");
     result = QueryResult(result.data
-        .map((e) => applyAllTransforms(node, e, query.transforms))
+        .map((e) => applyAllTransforms(node, e, resolvedTransforms, variables))
         .where(
             (e) => e != null && e != 'null' && e.toString().trim().isNotEmpty)
         .toList());

@@ -47,6 +47,8 @@ List<Element> applySingleNavigation(Element element, String part) {
   if (part.isEmpty || part.startsWith("@")) return [element];
 
   switch (part) {
+    case r'$':
+      return [element];
     case '^^':
       var root = element;
       while (root.parent != null) {

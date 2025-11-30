@@ -8,8 +8,8 @@ import 'query_result.dart';
 final _log = Logger('QueryString.Transforms');
 
 /// Extension for transform, filter, and regexp operations on QueryString
-dynamic applyAllTransforms(
-    PageNode node, dynamic value, Map<String, List<String>> transforms) {
+dynamic applyAllTransforms(PageNode node, dynamic value,
+    Map<String, List<String>> transforms, Map<String, dynamic> variables) {
   if (value == null) return null;
 
   return transforms.entries.fold(value, (result, entry) {
@@ -21,6 +21,13 @@ dynamic applyAllTransforms(
         return entry.value.fold(result, (v, update) => applyUpdate(v, update));
       case 'filter':
         return entry.value.fold(result, (v, filter) => applyFilter(v, filter));
+      case 'save':
+        return entry.value.fold(result, (v, varName) {
+          if (v != null) {
+            variables[varName] = v;
+          }
+          return v;
+        });
       default:
         return result;
     }
@@ -63,10 +70,14 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
 
   // If varName is provided, extract the JSON from JavaScript variable assignment
   if (varName != null && varName.isNotEmpty) {
+    // Convert wildcard pattern to regex
+    // Escape special regex chars except * which becomes .*
+    final escapedName = RegExp.escape(varName).replaceAll(r'\*', '.*');
+
     // Match patterns like: var config = {...}; or window.__DATA__ = {...};
     final patterns = [
-      RegExp('$varName\\s*=\\s*({[\\s\\S]*?});', multiLine: true),
-      RegExp('$varName\\s*=\\s*(\\[[\\s\\S]*?\\]);', multiLine: true),
+      RegExp('$escapedName\\s*=\\s*({[\\s\\S]*?});', multiLine: true),
+      RegExp('$escapedName\\s*=\\s*(\\[[\\s\\S]*?\\]);', multiLine: true),
     ];
 
     bool found = false;

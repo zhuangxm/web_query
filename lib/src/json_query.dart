@@ -44,6 +44,7 @@ QueryResult resolveJsonMultiPath(
 
 dynamic resolveJsonPath(dynamic data, String path) {
   if (path == '*') return data;
+  if (path == r'$') return data;
   if (data is List) {
     if (path.contains('-')) {
       final parts = path.split('-');
@@ -62,6 +63,9 @@ dynamic resolveJsonPath(dynamic data, String path) {
       }
     }
   } else if (data is Map) {
+    if (path == '@keys') {
+      return data.keys.toList();
+    }
     return data[path];
   }
   return null;
