@@ -65,6 +65,25 @@ dynamic resolveJsonPath(dynamic data, String path) {
     if (path == '@keys') {
       return data.keys.toList();
     }
+
+    // Check for wildcard pattern
+    if (path.contains('*') || path.contains('?')) {
+      final regexPattern = path
+          .replaceAll('*', '.*')
+          .replaceAll('?', '.')
+          .replaceAll(r'$', r'\$');
+      final regex = RegExp('^$regexPattern\$');
+
+      final matches = <String, dynamic>{};
+      for (var key in data.keys) {
+        if (regex.hasMatch(key.toString())) {
+          matches[key.toString()] = data[key];
+        }
+      }
+
+      return matches.isEmpty ? null : matches;
+    }
+
     return data[path];
   }
   return null;
