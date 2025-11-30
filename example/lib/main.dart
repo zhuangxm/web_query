@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:http/http.dart' as http;
+import 'package:web_query/js.dart';
 import 'package:web_query/query.dart';
 import 'package:web_query/ui.dart';
 
+import 'log.dart';
+
 void main() {
+  logInit();
+  configureJsExecutor(FlutterJsExecutor());
   runApp(const MyApp());
 }
 

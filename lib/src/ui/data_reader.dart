@@ -73,7 +73,7 @@ class DataQueryWidget extends HookWidget {
             final root = pageData!.getRootElement();
 
             // Get simplified value result
-            final value = queryString.getValue(root);
+            final value = queryString.getValue(root, separator: " ");
             valueResult.value = value;
 
             // Try to get collection first
@@ -281,6 +281,8 @@ class DataQueryWidget extends HookWidget {
                               // getValue result section
                               if (valueResult.value != null)
                                 Container(
+                                  constraints:
+                                      const BoxConstraints(maxHeight: 200),
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: Colors.blue.shade900
@@ -315,14 +317,16 @@ class DataQueryWidget extends HookWidget {
                                         ],
                                       ),
                                       const SizedBox(height: 4),
-                                      SelectableText(
-                                        valueResult.value!.length > 500
-                                            ? '${valueResult.value!.substring(0, 500)}...${valueResult.value!.length - 500} more characters' // Add ellipsis if truncated
-                                            : valueResult.value!,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.white,
-                                          fontFamily: 'monospace',
+                                      Expanded(
+                                        child: SingleChildScrollView(
+                                          child: SelectableText(
+                                            valueResult.value!,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.white,
+                                              fontFamily: 'monospace',
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ],

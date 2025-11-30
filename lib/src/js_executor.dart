@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_js/flutter_js.dart';
 import 'package:logging/logging.dart';
 
@@ -32,12 +33,12 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       final result = runtime.evaluate(script);
       if (result.isError) {
         _log.warning('JavaScript execution error: ${result.stringResult}');
-        return null;
+        return {"error": 'JavaScript execution error: ${result.stringResult}'};
       }
       return result.stringResult;
     } catch (e) {
       _log.warning('Failed to execute JavaScript: $e');
-      return null;
+      return {"error": 'Failed to execute JavaScript: $e'};
     }
   }
 
@@ -54,12 +55,16 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       // Build the capture script
       final captureScript = _buildCaptureScript(script, variableNames);
 
+      _log.warning("script: $captureScript");
       // Execute the script
       final result = runtime.evaluate(captureScript);
       if (result.isError) {
         _log.warning(
             'JavaScript variable extraction error: ${result.stringResult}');
-        return {};
+        return {
+          "error":
+              'JavaScript variable extraction error: ${result.stringResult}'
+        };
       }
 
       // Get the JSON string result
@@ -68,7 +73,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       if (jsonResult.isEmpty ||
           jsonResult == 'undefined' ||
           jsonResult == 'null') {
-        return {};
+        return null;
       }
 
       // Parse the JSON string
@@ -85,11 +90,11 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         return parsed;
       } catch (e) {
         _log.warning('Failed to parse JSON result: $jsonResult, error: $e');
-        return {};
+        return {"error": 'Failed to parse JSON result: $jsonResult, error: $e'};
       }
     } catch (e) {
       _log.warning('Failed to extract variables: $e');
-      return {};
+      return {"error": 'Failed to extract variables: $e'};
     }
   }
 
