@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_const_declarations
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_query/src/page_data.dart';
 

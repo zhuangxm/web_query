@@ -48,8 +48,8 @@ class HomePage extends HookWidget {
       isLoading.value = true;
       try {
         final response = await http.get(Uri.parse(url));
+        pageData.value = PageData.auto(url, response.body);
         if (response.statusCode == 200) {
-          pageData.value = PageData(url, response.body);
         } else {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

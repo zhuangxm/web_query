@@ -64,7 +64,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
     try {
       // Clear user-defined variables but keep our mocks
-      final clearScript = '''
+      const clearScript = '''
         (function() {
           var keysToKeep = ['window', 'document', 'console', 'navigator', 'screen', 
                            'location', 'localStorage', 'sessionStorage', 'setTimeout', 
@@ -103,7 +103,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
   void _initializeGlobals(JavascriptRuntime runtime) {
     // Set up common browser globals
-    final initScript = '''
+    const initScript = '''
       // Create window object as alias to globalThis
       var window = globalThis;
       
@@ -587,22 +587,14 @@ class FlutterJsExecutor implements JavaScriptExecutor {
 
 /// Singleton instance for global access
 class JsExecutorRegistry {
-  static JavaScriptExecutor? _instance;
-
-  /// Get the current JavaScript executor
-  static JavaScriptExecutor? get instance => _instance;
-
-  /// Set the JavaScript executor
-  static set instance(JavaScriptExecutor? executor) {
-    _instance = executor;
-  }
+  static JavaScriptExecutor? instance;
 
   /// Check if an executor is configured
-  static bool get isConfigured => _instance != null;
+  static bool get isConfigured => instance != null;
 
   /// Get or create default executor
   static JavaScriptExecutor getOrCreateDefault() {
-    _instance ??= FlutterJsExecutor();
-    return _instance!;
+    instance ??= FlutterJsExecutor();
+    return instance!;
   }
 }

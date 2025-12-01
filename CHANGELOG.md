@@ -1,3 +1,9 @@
+## 0.6.2
+
+### Fix bugs
+
+- Fixed PageData.auto html not initialized.
+
 ## 0.6.1
 
 ### Improvements
@@ -16,12 +22,14 @@
 ### New Features
 
 - **JSON Path Wildcards**: Added wildcard support for JSON paths in queries
-  - `json:flashvars_*` - Match all keys starting with "flashvars_"
-  - `json:*_config` - Match all keys ending with "_config"
+
+  - `json:flashvars_*` - Match all keys starting with "flashvars\_"
+  - `json:*_config` - Match all keys ending with "\_config"
   - Works with piping: `jseval >> json:flashvars_*`
   - Returns Map with all matching keys
 
 - **jseval Wildcard Matching**: JavaScript variable extraction now supports wildcards
+
   - `transform=jseval:flashvars_*` - Extract all matching variables
   - `transform=jseval:*_data,*_config` - Multiple patterns
   - Same wildcard syntax as JSON transform
@@ -34,11 +42,13 @@
 ### Improvements
 
 - **Better Error Handling**: jseval returns `null` instead of `{}` on errors
+
   - Consistent with other transforms
   - Empty results also return `null`
   - Easier to detect failures
 
 - **Enhanced Browser Globals**: Added more mock objects
+
   - `window.addEventListener` and `removeEventListener`
   - `screen` object with width/height properties
   - `atob`/`btoa` for base64 encoding
@@ -76,11 +86,13 @@
 ### New Features
 
 - **Keep Parameter**: Added `&keep` parameter to preserve intermediate values when using `?save=`
+
   - `?save=varName` - Save and auto-discard (cleaner templates)
   - `?save=varName&keep` - Save and keep in output
   - Selective keeping: Mix saved-only and saved-kept values in same query
 
 - **Enhanced JSON Extraction**: Improved `transform=json` to extract JavaScript variables from `<script>` tags
+
   - Extract objects: `transform=json:config` matches `var config = {...}`
   - Extract arrays: `transform=json:items` matches `var items = [...]`
   - Extract primitives: `transform=json:count` matches `var count = 42`
@@ -88,6 +100,7 @@
   - Supports multiple formats: `window.__DATA__`, `var data`, etc.
 
 - **JavaScript Execution (jseval)**: Execute JavaScript code to extract variables from obfuscated scripts
+
   - Extract specific variables: `transform=jseval:var1,var2`
   - Wildcard matching: `transform=jseval:flashvars_*,*_config`
   - Auto-detect variables: `transform=jseval` (no variable names)
@@ -97,6 +110,7 @@
   - Indirect eval: Uses global scope for proper `var` detection
 
 - **Variable Substitution**: Use saved variables in query paths and regex patterns
+
   - Path substitution: `json:items/${id}` uses saved `id` variable
   - Regex substitution: `regexp:/${pattern}/replacement/` uses saved `pattern` variable
   - Template scheme: `template:${var1} ${var2}` combines multiple variables
@@ -162,6 +176,7 @@ See [MIGRATION_KEEP.md](MIGRATION_KEEP.md) for detailed migration guide.
 ### New Features
 
 - **UI Components** (exported via `package:web_query/ui.dart`):
+
   - `JsonTreeView`: Interactive collapsible JSON tree viewer with syntax highlighting
   - `HtmlTreeView`: Interactive collapsible HTML tree viewer
   - `DataQueryWidget`: Complete data reader widget with HTML/JSON views and query filtering
@@ -205,26 +220,29 @@ The old `Selectors` class and related APIs have been removed. Use `QueryString` 
 
 ## 0.3.0
 
-
 ### What's New
 
 - **URL Scheme**: Added `url:` scheme for querying and modifying URLs
+
   - Query URL components: `url:host`, `url:path`, `url:query`, `url:fragment`, etc.
   - Query parameters: `url:queryParameters/key`
   - Modify URLs: `url:?page=2`, `url:?_host=new.com`
   - Supports all transforms including `regexp`
 
 - **Simplified Regexp Syntax**: Added `?regexp=` as shorthand for `?transform=regexp:`
+
   - `?regexp=/pattern/` - Pattern-only mode
   - `?regexp=/pattern/replacement/` - Replace mode
   - Multiple regexp params are chained: `?regexp=/a/b/&regexp=/c/d/`
 
 - **Multiline Regexp Support**:
+
   - `multiLine: true` enabled by default for all regexp operations
   - `\ALL` keyword matches entire content (expands to `^[\s\S]*$`)
   - Better handling of newlines in patterns
 
 - **DataQueryWidget UI Component**:
+
   - Interactive HTML tree view with collapsible nodes
   - Real-time QueryString filtering
   - Switch between HTML and JSON views
@@ -232,16 +250,17 @@ The old `Selectors` class and related APIs have been removed. Use `QueryString` 
   - Example project demonstrating usage
 
 - **Examples**:
+
   ```dart
   // URL queries
   'url:host'                    // Get hostname
   'url:?page=2'                 // Modify query param
   'url:?regexp=/https/http/'    // Transform URL
-  
+
   // Simplified regexp
   'h1@text?regexp=/Title/Header/'
   '*li@text?regexp=/\ALL/Replaced/'
-  
+
   // Multiline matching
   'div@text?regexp=/^Line 2/Matched/'  // Match start of line
   'div@text?regexp=/\ALL/Replaced/'    // Match all content
@@ -256,27 +275,28 @@ The old `Selectors` class and related APIs have been removed. Use `QueryString` 
   - Exclude filters: `filter=!word` excludes items containing "word"
   - Combined filters: `filter=a !b` includes "a" AND excludes "b"
   - Escaped characters: Support for `\ ` (space), `\;` (semicolon), `\&` (ampersand)
-  
 - **Enhanced Parameter Parsing**:
+
   - Smart handling of `&` in `transform`, `filter`, and `update` parameters
   - Intelligent semicolon splitting for `regexp` transforms (preserves `;` within `/pattern/replacement/`)
   - Proper escaping/unescaping for special characters
 
 - **Examples**:
+
   ```dart
   // Filter by inclusion
   '*li/@text?filter=Apple'
-  
+
   // Filter by exclusion
   '*li/@text?filter=!Banana'
-  
+
   // Combined filters
   '*li/@text?filter=fruit !bad'
-  
+
   // With escaped characters
   '*li/@text?filter=Date\ Fruit'  // Matches "Date Fruit"
   '*li/@text?filter=\&'            // Matches items with "&"
-  
+
   // Mixed with transforms
   '*li/@text?transform=regexp:/Fig/Big/&filter=&'
   ```
@@ -284,7 +304,6 @@ The old `Selectors` class and related APIs have been removed. Use `QueryString` 
 ## 0.2.7
 
 - adding filter transform to filter result.
-
 
 ## 0.2.6
 

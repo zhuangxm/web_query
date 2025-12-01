@@ -1,12 +1,17 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:gbk_codec/gbk_codec.dart';
 import 'package:html/dom.dart';
+import 'package:logging/logging.dart';
 import 'package:xml2json/xml2json.dart';
+
+final _log = Logger("PageData");
 
 /// class represent the data from web request returns.
 class PageData {
   /// the html page.
-  late String html;
+  final String html;
 
   /// the document that parse the html using html package.
   late Document? document;
@@ -17,7 +22,7 @@ class PageData {
   late dynamic jsonData;
 
   /// the url that web data comes from
-  String url;
+  final String url;
 
   /// parse the html into object's [document].
   /// object's [jsonData] first come from the parameter's [jsonData] and decode it into json object.
@@ -25,6 +30,13 @@ class PageData {
   /// otherwise set to null
   PageData(this.url, this.html,
       {String? this.jsonData, String? defaultJsonId}) {
+    try {
+      document = Document.html(html);
+    } catch (e) {
+      _log.warning("html data is Invalid, using <html></html> instead, $e");
+      document = Document.html("<html></html>");
+    }
+
     document = Document.html(html);
     jsonData = jsonData != null
         ? jsonDecode(jsonData)
@@ -34,29 +46,53 @@ class PageData {
     //debugPrint("page data ${document?.documentElement}");
   }
 
-  //try to parse the content into document and jsonData, auto distinguish html xml and json, xml will be transformed into json
-  PageData.auto(this.url, content) {
-    if (content is String) {
-      content = content.trim();
-      if (content.startsWith("<?xml")) {
-        final transfomer = Xml2Json();
-        transfomer.parse(content);
-        content = transfomer.toParkerWithAttrs();
-      }
-      try {
-        document = Document.html(content);
-      } catch (e) {
-        document = Document.html("<html></html>");
-      }
-      try {
-        jsonData = jsonDecode(content);
-      } catch (e) {
+  // Internal constructor used by factory for pre-parsed inputs
+  PageData.html(this.url, this.html)
+      : document = Document.html(html),
         jsonData = null;
+
+  PageData.json(this.url, this.jsonData)
+      : html = '<html></html>',
+        document = Document.html('<html></html>');
+
+  // Auto-detect input type and construct PageData
+  factory PageData.auto(String url, dynamic content) {
+    // Normalize input: support raw bytes by decoding as UTF-8
+    // Only treat Uint8List as bytes; generic List<int> may be real JSON arrays
+    dynamic normalized = content;
+    if (content is Uint8List) {
+      try {
+        normalized = utf8.decode(content);
+      } catch (_) {
+        try {
+          normalized = gbk.decode(content);
+        } catch (_) {
+          normalized = content.toString();
+        }
       }
-    } else {
-      document = Document.html("<html></html>");
-      jsonData = content;
     }
+
+    if (normalized is! String) {
+      return PageData.json(url, normalized);
+    } else {
+      var text = normalized.trim();
+
+      // XML → JSON conversion
+      if (text.startsWith("<?xml")) {
+        try {
+          final transfomer = Xml2Json();
+          transfomer.parse(text);
+          text = transfomer.toParkerWithAttrs();
+        } catch (_) {}
+      }
+
+      // Decode JSON from possibly converted text
+      try {
+        return PageData.json(url, jsonDecode(text));
+      } catch (_) {}
+    }
+
+    return PageData.html(url, normalized.toString());
   }
 
   ///get jsonData from [document] that has id named [id]
