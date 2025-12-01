@@ -1,4 +1,19 @@
+## 0.6.4
+
+### Bug Fixes
+
+- **Template Scheme URL Parsing**: Fixed issue where template URLs containing query parameters were incorrectly parsed as QueryPart parameters.
+  - Template content like `template:https://example.com/api?param=value` now works correctly
+  - The `?` and `&` characters in template URLs are no longer treated as QueryPart parameter delimiters
+  - Example: `template:https://www.example.com/api/${username}/query?timezoneOffset=-780&triggerRequest=load&primaryTag=${tag}` now works as expected
+
+### Technical Details
+
+- Modified `QueryPart.parse()` to add special handling for `template` scheme
+- Template scheme now skips query parameter parsing entirely, treating the entire content as the template path
+
 ## 0.6.3
+
 
 ### Bug Fixes
 

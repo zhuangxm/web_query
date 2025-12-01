@@ -183,6 +183,13 @@ class QueryPart {
     final scheme = schemeResult.scheme;
     queryString = schemeResult.queryString;
 
+    // Special handling for template scheme - treat entire content as path
+    // Template content may contain ? and & characters that are part of the URL
+    // being templated, not QueryPart parameters
+    if (scheme == schemeTemplate) {
+      return QueryPart(scheme, queryString, {}, {}, required, isPipe: isPipe);
+    }
+
     // Pre-encode reserved parameters
     queryString = _preEncodeReservedParameters(queryString);
 
