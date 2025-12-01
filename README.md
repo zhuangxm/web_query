@@ -24,28 +24,33 @@ A powerful Flutter library for querying HTML and JSON data using a simple, intui
 ## Features
 
 ✨ **Simple & Intuitive Syntax**
+
 - CSS-like selectors for HTML elements
 - JSONPath-style navigation for JSON data
 - Unified query interface for both HTML and JSON
 
 🔍 **Powerful Querying**
+
 - Element navigation (parent, child, siblings)
 - Class name matching with wildcards
 - Multiple attribute accessors
 - Array indexing and range selection
 
 🔧 **Data Transformation**
+
 - Text transformations (uppercase, lowercase)
 - RegExp pattern matching and replacement
 - Variable substitution (pageUrl, rootUrl)
 - Chainable transforms
 
 🎯 **Advanced Filtering**
+
 - Include/exclude filters
 - Combined filter conditions
 - Support for special characters
 
 🔗 **Query Composition**
+
 - Fallback queries with `||`
 - Required queries with `++`
 - Per-query transformations
@@ -56,7 +61,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.6.1
+  web_query: ^0.6.2
 ```
 
 Then run:
@@ -142,12 +147,12 @@ final firstPost = QueryString('json:user/posts/0/title').getValue(node);
 
 Queries can target HTML, JSON, or URL data:
 
-| Scheme | Description | Example |
-|--------|-------------|---------|
-| `html:` | Query HTML elements (optional, default) | `html:div/p/@text` |
-| `json:` | Query JSON data | `json:user/name` |
-| `url:` | Query and modify URLs | `url:host`, `url:?page=2` |
-| (none) | Defaults to HTML | `div/p/@text` |
+| Scheme  | Description                             | Example                   |
+| ------- | --------------------------------------- | ------------------------- |
+| `html:` | Query HTML elements (optional, default) | `html:div/p/@text`        |
+| `json:` | Query JSON data                         | `json:user/name`          |
+| `url:`  | Query and modify URLs                   | `url:host`, `url:?page=2` |
+| (none)  | Defaults to HTML                        | `div/p/@text`             |
 
 ### HTML Selectors
 
@@ -217,17 +222,17 @@ Queries can target HTML, JSON, or URL data:
 
 Attribute accessors extract data from HTML elements:
 
-| Accessor | Description | Example |
-|----------|-------------|---------|
-| `@` or `@text` | Text content | `div/@text` |
-| `@html` or `@innerHtml` | Inner HTML | `div/@html` |
-| `@outerHtml` | Outer HTML | `div/@outerHtml` |
-| `@href`, `@src`, etc. | Specific attribute | `a/@href`, `img/@src` |
-| `@.classname` | Check class existence | `div/@.active` → "true" or null |
-| `@.prefix*` | Class with prefix | `div/@.btn*` → matches "btn-primary" |
-| `@.*suffix` | Class with suffix | `div/@.*-lg` → matches "btn-lg" |
-| `@.*part*` | Class containing text | `div/@.*active*` → matches "is-active" |
-| `@attr1\|attr2` | First available attribute | `img/@src\|data-src` |
+| Accessor                | Description               | Example                                |
+| ----------------------- | ------------------------- | -------------------------------------- |
+| `@` or `@text`          | Text content              | `div/@text`                            |
+| `@html` or `@innerHtml` | Inner HTML                | `div/@html`                            |
+| `@outerHtml`            | Outer HTML                | `div/@outerHtml`                       |
+| `@href`, `@src`, etc.   | Specific attribute        | `a/@href`, `img/@src`                  |
+| `@.classname`           | Check class existence     | `div/@.active` → "true" or null        |
+| `@.prefix*`             | Class with prefix         | `div/@.btn*` → matches "btn-primary"   |
+| `@.*suffix`             | Class with suffix         | `div/@.*-lg` → matches "btn-lg"        |
+| `@.*part*`              | Class containing text     | `div/@.*active*` → matches "is-active" |
+| `@attr1\|attr2`         | First available attribute | `img/@src\|data-src`                   |
 
 #### Class Matching Examples
 
@@ -248,15 +253,15 @@ Attribute accessors extract data from HTML elements:
 
 Navigate the DOM tree from a selected element:
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `^` | Parent element | `p/^` |
-| `^^` | Root element | `p/^^` |
-| `>` | First child | `div/>` |
-| `+` | Next sibling | `div/+` |
-| `*+` | All next siblings | `div/*+` |
-| `-` | Previous sibling | `div/-` |
-| `*-` | All previous siblings | `div/*-` |
+| Operator | Description           | Example  |
+| -------- | --------------------- | -------- |
+| `^`      | Parent element        | `p/^`    |
+| `^^`     | Root element          | `p/^^`   |
+| `>`      | First child           | `div/>`  |
+| `+`      | Next sibling          | `div/+`  |
+| `*+`     | All next siblings     | `div/*+` |
+| `-`      | Previous sibling      | `div/-`  |
+| `*-`     | All previous siblings | `div/*-` |
 
 #### Navigation Examples
 
@@ -338,18 +343,18 @@ Use `?regexp=` as a shorthand for `?transform=regexp:`:
 
 #### Special RegExp Keywords
 
-| Keyword | Description | Expands To |
-|---------|-------------|------------|
-| `\ALL` | Match entire content | `^[\s\S]*$` |
+| Keyword | Description          | Expands To  |
+| ------- | -------------------- | ----------- |
+| `\ALL`  | Match entire content | `^[\s\S]*$` |
 
 #### RegExp Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `${pageUrl}` | Full page URL | `https://example.com/page` |
-| `${rootUrl}` | Origin (scheme + host) | `https://example.com` |
-| `$1`, `$2`, ... | Capture groups | From regex pattern |
-| `$0` | Full match | Entire matched text |
+| Variable        | Description            | Example                    |
+| --------------- | ---------------------- | -------------------------- |
+| `${pageUrl}`    | Full page URL          | `https://example.com/page` |
+| `${rootUrl}`    | Origin (scheme + host) | `https://example.com`      |
+| `$1`, `$2`, ... | Capture groups         | From regex pattern         |
+| `$0`            | Full match             | Entire matched text        |
 
 #### Transform Examples
 
@@ -435,11 +440,13 @@ Both can extract JSON from HTML, but they work differently:
 ```
 
 **When to use `>>`:**
+
 - Processing collections (e.g., list of HTML/JSON strings)
 - Switching context between schemes (HTML ↔ JSON)
 - Cleaner syntax for multi-step parsing
 
 **When to use `transform=json`:**
+
 - Extracting JavaScript variables from script tags (e.g., `transform=json:*Config*`)
 - Getting the full JSON object without further querying
 
@@ -471,12 +478,14 @@ configureJsExecutor(FlutterJsExecutor());
 ```
 
 **Requirements:**
+
 - Import `package:web_query/js.dart`
 - Call `configureJsExecutor(FlutterJsExecutor())` before using jseval
 - Uses `flutter_js` package for JavaScript execution
 
 **Browser Globals:**
 The JavaScript runtime automatically provides common browser globals:
+
 - `window` - Alias to globalThis
 - `document` - Mock document object with common properties
 - `console` - Mock console (log, warn, error, etc.)
@@ -486,6 +495,7 @@ The JavaScript runtime automatically provides common browser globals:
 - `setTimeout` / `setInterval` - Mock timer functions
 
 **Use cases:**
+
 - Extracting data from obfuscated JavaScript
 - Handling eval()-based variable assignments
 - Processing dynamically generated JavaScript code
@@ -619,14 +629,14 @@ Future<void> scrapeArticle(String url) async {
   final response = await http.get(Uri.parse(url));
   final pageData = PageData(url, response.body);
   final node = pageData.getRootElement();
-  
+
   // Extract article data
   final title = QueryString('h1.title/@text').getValue(node);
   final author = QueryString('.author/@text||.byline/@text').getValue(node);
   final date = QueryString('.date/@text?transform=regexp:/(\d{4}-\d{2}-\d{2})/$1/').getValue(node);
   final content = QueryString('.article-body/*p/@text').getCollectionValue(node);
   final images = QueryString('.article-body/*img/@src?transform=regexp:/^\/(.+)/${rootUrl}$1/').getCollectionValue(node);
-  
+
   print('Title: $title');
   print('Author: $author');
   print('Date: $date');
@@ -646,19 +656,19 @@ Future<void> fetchUserData(String userId) async {
   final response = await http.get(
     Uri.parse('https://api.example.com/users/$userId')
   );
-  
+
   final pageData = PageData(
     response.request!.url.toString(),
     '<html></html>',
     jsonData: response.body
   );
   final node = pageData.getRootElement();
-  
+
   // Extract user data
   final name = QueryString('json:data/user/name').getValue(node);
   final email = QueryString('json:data/user/email').getValue(node);
   final posts = QueryString('json:data/user/posts/*/title').getCollectionValue(node);
-  
+
   print('Name: $name');
   print('Email: $email');
   print('Posts: $posts');
@@ -862,13 +872,15 @@ DataQueryWidget(
 ```
 
 Features:
+
 - Interactive HTML tree view
 - Real-time QueryString filtering
 - Switch between HTML and JSON views
 - Visual query results panel
 
 See the [example project](example/) for a complete demonstration.
-```
+
+````
 
 ## API Reference
 
@@ -885,18 +897,18 @@ dynamic execute(PageNode node, {bool simplify = true})
 String getValue(PageNode node, {String separator = '\n'})
 Iterable<PageNode> getCollection(PageNode node)
 Iterable getCollectionValue(PageNode node)
-```
+````
 
 #### Which Method to Use?
 
 Choose the appropriate method based on your needs:
 
-| Method | Use When | Returns |
-|--------|----------|---------|
-| `getValue()` | You want a single string value or concatenated text | `String` |
-| `getCollectionValue()` | You want multiple raw values (strings, Elements, JSON) | `Iterable<dynamic>` |
-| `getCollection()` | You need PageNode objects for further querying | `Iterable<PageNode>` |
-| `execute()` | You want automatic simplification (single value or list) | `dynamic` |
+| Method                 | Use When                                                 | Returns              |
+| ---------------------- | -------------------------------------------------------- | -------------------- |
+| `getValue()`           | You want a single string value or concatenated text      | `String`             |
+| `getCollectionValue()` | You want multiple raw values (strings, Elements, JSON)   | `Iterable<dynamic>`  |
+| `getCollection()`      | You need PageNode objects for further querying           | `Iterable<PageNode>` |
+| `execute()`            | You want automatic simplification (single value or list) | `dynamic`            |
 
 **Recommended:** Use `getValue()` for single values and `getCollectionValue()` for lists of raw values and `getCollection()` for lists of PageNode objects. Use `execute()` only when you need dynamic behavior.
 
