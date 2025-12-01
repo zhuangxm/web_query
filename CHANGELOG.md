@@ -1,4 +1,19 @@
+## 0.6.3
+
+### Bug Fixes
+
+- **Variable Resolution in QueryPart Parameters**: Fixed issue where saved variables were not being resolved in QueryPart parameters (e.g., URL query parameters, URL modification parameters).
+  - Variables like `${vod}` are now properly resolved in all parameter contexts
+  - Example: `json:vod_id?save=vod ++ url:?ac=videolist&ids=${vod}` now correctly produces `?ac=videolist&ids=12345` instead of `?ac=videolist&ids=%24%7Bvod%7D`
+  - Affects all QueryPart parameters including `_host`, `_path`, filter values, etc.
+
+### Technical Details
+
+- Modified `_executeSingleQuery` in `query.dart` to resolve variables in both path and parameters before execution
+- Created new `QueryPart` with resolved values to ensure proper variable substitution across all query schemes
+
 ## 0.6.2
+
 
 ### Fix bugs
 
