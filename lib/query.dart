@@ -283,6 +283,18 @@ class QueryString extends DataPicker {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
 
+    // Resolve variables in parameters
+    final resolvedParameters = <String, List<String>>{};
+    query.parameters.forEach((key, values) {
+      resolvedParameters[key] =
+          values.map((v) => _resolveString(v, variables)).toList();
+    });
+
+    // Create a new query part with resolved path and parameters
+    final resolvedQuery = QueryPart(query.scheme, resolvedPath,
+        resolvedParameters, query.transforms, query.required,
+        isPipe: query.isPipe);
+
     QueryResult result = QueryResult([]);
     if (resolvedPath.isNotEmpty) {
       //final decodedPath = _decodePath(Uri.parse(query.path));
@@ -290,16 +302,14 @@ class QueryString extends DataPicker {
           ? applyJsonPathFor(node.jsonData, resolvedPath)
           : query.scheme == 'url'
               ? applyUrlPathFor(node,
-                  query) // url query might need resolved path too but it uses query object
+                  resolvedQuery) // url query might need resolved path too but it uses query object
               : applyHtmlPathFor(
                   node.element,
                   // Create a temporary query part with resolved path for HTML query
-                  QueryPart(query.scheme, resolvedPath, query.parameters,
-                      query.transforms, query.required,
-                      isPipe: query.isPipe));
+                  resolvedQuery);
     } else {
       result = query.scheme == 'url'
-          ? applyUrlPathFor(node, query)
+          ? applyUrlPathFor(node, resolvedQuery)
           : QueryResult(node);
     }
 
