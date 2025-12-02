@@ -99,6 +99,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  function_tree:
+    dependency: transitive
+    description:
+      name: function_tree
+      sha256: "098f41f8c8d55952fd162cbeb709e8213a709065ab6fbebffe323701c785a259"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.1"
   gbk_codec:
     dependency: transitive
     description:
@@ -310,7 +318,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.6.1"
+    version: "0.6.5"
   xml:
     dependency: transitive
     description:

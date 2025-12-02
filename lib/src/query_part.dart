@@ -93,6 +93,7 @@ class QueryPart {
     encodeParam(paramFilter);
     encodeParam(paramUpdate);
     encodeParam(paramRegexp);
+    encodeParam(paramIndex);
 
     // Save and keep use simpler pattern (stop at & or end)
     for (var param in [paramSave, paramKeep]) {

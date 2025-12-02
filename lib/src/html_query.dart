@@ -93,10 +93,11 @@ List extractHtmlValue(List<Element> elements, String accessor) {
 String? extractAttributeValue(Element element, String accessor) {
   accessor = accessor.substring(1);
   final attributes = accessor.split(RegExp(r'(\|)'));
-  return attributes
+  final result = attributes
       .map((attribute) => extractSingleAttributeValue(element, attribute))
       .where((e) => e?.isNotEmpty ?? false)
       .firstOrNull;
+  return result;
 }
 
 String? extractSingleAttributeValue(Element element, String attribute) {

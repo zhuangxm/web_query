@@ -1,3 +1,10 @@
+## 0.6.6
+
+*   Add support for variable arithmetic in query strings using `${expression}` syntax (e.g., `${index + 1}`).
+*   Add `function_tree` dependency for expression evaluation.
+*   Fix `>>>` operator to correctly handle JSON array piping.
+*   Fix `jseval` regression where JS runtime wasn't being reset.
+
 ## 0.6.5
 
 ### New Features

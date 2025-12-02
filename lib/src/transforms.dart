@@ -17,7 +17,6 @@ class DiscardMarker {
 dynamic applyAllTransforms(PageNode node, dynamic value,
     Map<String, List<String>> transforms, Map<String, dynamic> variables) {
   if (value == null) return null;
-
   return transforms.entries.fold(value, (result, entry) {
     switch (entry.key) {
       case 'transform':
