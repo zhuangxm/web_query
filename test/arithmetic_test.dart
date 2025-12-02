@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_query/query.dart';
 
@@ -96,6 +98,58 @@ void main() {
           .execute(node);
 
       expect(result, 'Result');
+    });
+
+    test('JSON array index with variable', () {
+      final jsonData = jsonEncode(['a', 'b', 'c']);
+      final node = PageData('https://example.com', '', jsonData: jsonData)
+          .getRootElement();
+
+      final variables = {'index': 1};
+      // json:1 -> "b"
+      final result = QueryString('json:\${index}')
+          .execute(node, initialVariables: variables);
+
+      expect(result, 'b');
+    });
+
+    test('JSON map key with variable', () {
+      final jsonData = jsonEncode({'foo': 'bar', 'baz': 'qux'});
+      final node = PageData('https://example.com', '', jsonData: jsonData)
+          .getRootElement();
+
+      final variables = {'key': 'baz'};
+      // json:baz -> "qux"
+      final result = QueryString('json:\${key}')
+          .execute(node, initialVariables: variables);
+
+      expect(result, 'qux');
+    });
+
+    test('JSON path with arithmetic in variable', () {
+      final jsonData = jsonEncode(['a', 'b', 'c', 'd']);
+      final node = PageData('https://example.com', '', jsonData: jsonData)
+          .getRootElement();
+
+      final variables = {'start': "1", 'offset': 1};
+      // json:2 -> "c"
+      final result = QueryString('json:\${start + offset}')
+          .execute(node, initialVariables: variables);
+
+      expect(result, 'c');
+    });
+
+    test('HTML class with variable', () {
+      const html =
+          '<html><div class="item-1">Item 1</div><div class="item-2">Item 2</div></html>';
+      final node = PageData('https://example.com', html).getRootElement();
+
+      final variables = {'id': 2};
+      // .item-2@text
+      final result = QueryString('.item-\${id}@text')
+          .execute(node, initialVariables: variables);
+
+      expect(result, 'Item 2');
     });
   });
 }
