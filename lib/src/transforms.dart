@@ -27,6 +27,9 @@ dynamic applyAllTransforms(PageNode node, dynamic value,
         return entry.value.fold(result, (v, update) => applyUpdate(v, update));
       case 'filter':
         return entry.value.fold(result, (v, filter) => applyFilter(v, filter));
+      case 'index':
+        return entry.value
+            .fold(result, (v, indexStr) => applyIndex(v, indexStr));
       case 'save':
         // Save BEFORE discard so we save the unwrapped value
         entry.value.fold(result, (v, varName) {
@@ -43,6 +46,34 @@ dynamic applyAllTransforms(PageNode node, dynamic value,
         return result;
     }
   });
+}
+
+dynamic applyIndex(dynamic value, String indexStr) {
+  if (value == null) return null;
+
+  // Parse index (handle negative indices)
+  final index = int.tryParse(indexStr);
+  if (index == null) {
+    _log.warning('Invalid index value: $indexStr (must be an integer)');
+    return null;
+  }
+
+  if (value is List) {
+    if (value.isEmpty) return null;
+
+    // Handle negative indices
+    final actualIndex = index < 0 ? value.length + index : index;
+
+    // Check bounds
+    if (actualIndex < 0 || actualIndex >= value.length) {
+      return null;
+    }
+
+    return value[actualIndex];
+  }
+
+  // For non-list values, index=0 returns the value, others return null
+  return index == 0 ? value : null;
 }
 
 dynamic applyTransformValues(PageNode node, dynamic value, String transform) {

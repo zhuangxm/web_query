@@ -150,7 +150,7 @@ class QueryString extends DataPicker {
 
   QueryString(this.query)
       : _queries = (query ?? "")
-            .splitKeep(RegExp(r'(\|\||\+\+|>>(?!=))'))
+            .splitKeep(RegExp(r'(\|\||\+\+|>>>|>>(?!=))'))
             .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
             .fold((true, false, <QueryPart>[]), (result, v) {
@@ -170,6 +170,41 @@ class QueryString extends DataPicker {
             .toList();
 
   dynamic execute(PageNode node, {bool simplify = true}) {
+    // Check if query contains >>> operator
+    if (query?.contains('>>>') ?? false) {
+      // Split at >>> and handle specially
+      final parts = query!.split('>>>');
+      if (parts.length == 2) {
+        // Execute first part
+        final firstResult =
+            QueryString(parts[0].trim()).execute(node, simplify: false);
+
+        // Convert result to list if it isn't already
+        final resultList =
+            (firstResult is Iterable) ? firstResult.toList() : [firstResult];
+
+        // Convert to JSON array - extract text from PageNodes
+        final arrayData = resultList.map((item) {
+          if (item is PageNode) {
+            return item.element?.text ?? item.jsonData;
+          }
+          return item;
+        }).toList();
+
+        final jsonData = jsonEncode(arrayData);
+
+        // Create a new PageData with the JSON array
+        final arrayPageData =
+            PageData(node.pageData.url, '', jsonData: jsonData);
+        final arrayNode = arrayPageData.getRootElement();
+
+        // Execute second part on the JSON array
+        return QueryString(parts[1].trim())
+            .execute(arrayNode, simplify: simplify);
+      }
+    }
+
+    // Normal execution
     // Reset JavaScript runtime only if query uses jseval
     if (_usesJseval()) {
       _resetJsRuntime();
@@ -210,8 +245,8 @@ class QueryString extends DataPicker {
       }
 
       QueryResult result_;
-      if (query.isPipe) {
-        // Pipe previous result as input to this query
+      if (query.isPipe && i > 0) {
+        // Regular pipe: execute query on each item from previous result
         if (result.data.isEmpty) {
           result_ = QueryResult([]);
         } else {
@@ -320,12 +355,21 @@ class QueryString extends DataPicker {
           values.map((v) => _resolveString(v, variables)).toList();
     });
 
+    // Extract index transform (it applies to the list, not individual elements)
+    final indexTransform = resolvedTransforms.remove('index');
+
     //_log.fine("execute query result before transform: $result");
     result = QueryResult(result.data
         .map((e) => applyAllTransforms(node, e, resolvedTransforms, variables))
         .where(
             (e) => e != null && e != 'null' && e.toString().trim().isNotEmpty)
         .toList());
+
+    // Apply index transform to the result list
+    if (indexTransform != null && indexTransform.isNotEmpty) {
+      final indexStr = indexTransform.first;
+      result = QueryResult(applyIndex(result.data, indexStr));
+    }
 
     return result;
   }

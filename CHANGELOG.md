@@ -1,4 +1,31 @@
+## 0.6.5
+
+### New Features
+
+- **Index Parameter**: Added `?index=` parameter to select the nth element from query results
+  - Static index: `*div@?index=2` - Get 3rd element (0-indexed)
+  - Variable index: `.link@href?regexp=/\d+/&save=idx ++ *div@?index=${idx}` - Use saved variable as index
+  - Negative index: `*div@?index=-1` - Get last element
+  - Works with any list result from queries
+  - Can be combined with other transforms: `*div@?index=1&transform=upper`
+
+- **Array Pipe Operator (`>>>`)**: Added `>>>` operator to treat previous results as a whole JSON array
+  - Enables JSON range operations: `*div@ >>> json:0-2` - Get first 3 elements
+  - Multi-index selection: `*div@ >>> json:1,3,5` - Get elements at specific indices
+  - Can be combined with regular pipe: `*div@ >>> json:0-4 >> json:name` - Get first 5, then extract name from each
+  - Difference from `>>`: `>>` pipes each element individually, `>>>` treats the entire result as one JSON array
+
+### Technical Details
+
+- Added `paramIndex` constant to `query_part.dart`
+- Implemented `applyIndex` function in `transforms.dart`
+- Index transform is applied to the result list after other transforms
+- Supports negative indexing (e.g., -1 for last element)
+- Returns null for out-of-bounds indices or empty lists
+- `>>>` operator implementation splits query at `>>>`, executes first part, converts result to JSON, then executes second part
+
 ## 0.6.4
+
 
 ### Bug Fixes
 

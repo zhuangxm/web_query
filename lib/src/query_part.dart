@@ -13,13 +13,14 @@ class QueryPart {
   static const String paramSave = 'save';
   static const String paramKeep = 'keep';
   static const String paramRequired = 'required';
+  static const String paramIndex = 'index';
 
   final String scheme;
   final String path;
-  final bool required;
-  final bool isPipe;
   final Map<String, List<String>> parameters;
   final Map<String, List<String>> transforms;
+  final bool required;
+  final bool isPipe;
 
   QueryPart(
       this.scheme, this.path, this.parameters, this.transforms, this.required,
@@ -167,7 +168,13 @@ class QueryPart {
     }
 
     // Move other transform-related parameters
-    for (var param in [paramUpdate, paramFilter, paramSave, paramKeep]) {
+    for (var param in [
+      paramUpdate,
+      paramFilter,
+      paramSave,
+      paramKeep,
+      paramIndex
+    ]) {
       if (params.containsKey(param)) {
         transforms[param] = params.remove(param)!;
       }
@@ -221,7 +228,8 @@ class QueryPart {
       paramUpdate,
       paramSave,
       paramKeep,
-      paramRegexp
+      paramRegexp,
+      paramIndex
     };
 
     // Check for unknown parameters (likely typos)
