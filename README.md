@@ -15,6 +15,7 @@ A powerful Flutter library for querying HTML and JSON data using a simple, intui
   - [Navigation Operators](#navigation-operators)
   - [Query Parameters](#query-parameters)
   - [Transforms](#transforms)
+  - [Query Piping](#query-piping)
   - [Filters](#filters)
   - [Query Chaining](#query-chaining)
   - [Query Validation](#query-validation)
@@ -70,7 +71,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.7.0
+  web_query: ^0.7.1
 ```
 
 Then run:
@@ -434,7 +435,7 @@ Extract JSON data from `<script>` tags or JavaScript variables:
 'script/@text?transform=json:count'           // Matches var count = 42;
 ```
 
-#### Query Piping (`>>` and `>>>`)
+### Query Piping
 
 Pass the output of one query as the input to the next:
 

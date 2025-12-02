@@ -37,6 +37,9 @@ class DataQueryWidget extends HookWidget {
     final filterResults = useState<List<Map<String, dynamic>>>([]);
     final valueResult = useState<String?>(null);
     final validationResult = useState<ValidationResult?>(null);
+    final fontSizeScale = useState(1.0);
+    final showSingleValue = useState(true);
+    final showCollection = useState(true);
 
     // Memoize filtered HTML to avoid re-parsing on every rebuild
     final filteredHtml = useMemoized(
@@ -143,9 +146,13 @@ class DataQueryWidget extends HookWidget {
           _DataReaderHeader(
             title: title,
             viewMode: viewMode,
+            fontSizeScale: fontSizeScale,
             onToggleExpand: onToggleExpand,
           ),
-          _QueryInput(controller: queryController),
+          _QueryInput(
+            controller: queryController,
+            fontSizeScale: fontSizeScale.value,
+          ),
           Expanded(
             child: _ResizableSplitView(
               left: Container(
@@ -169,6 +176,9 @@ class DataQueryWidget extends HookWidget {
                 valueResult: valueResult.value,
                 filterResults: filterResults.value,
                 validationResult: validationResult.value,
+                fontSizeScale: fontSizeScale.value,
+                showSingleValue: showSingleValue,
+                showCollection: showCollection,
               ),
             ),
           ),
@@ -182,11 +192,13 @@ class _DataReaderHeader extends StatelessWidget {
   const _DataReaderHeader({
     required this.title,
     required this.viewMode,
+    required this.fontSizeScale,
     this.onToggleExpand,
   });
 
   final String title;
   final ValueNotifier<DataViewMode> viewMode;
+  final ValueNotifier<double> fontSizeScale;
   final VoidCallback? onToggleExpand;
 
   @override
@@ -245,6 +257,33 @@ class _DataReaderHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
+          // Font size controls
+          IconButton(
+            icon: const Icon(Icons.remove, size: 16, color: Colors.white),
+            onPressed: () {
+              fontSizeScale.value = (fontSizeScale.value - 0.1).clamp(0.5, 2.0);
+            },
+            tooltip: 'Decrease font size',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          Text(
+            '${(fontSizeScale.value * 100).round()}%',
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.white70,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add, size: 16, color: Colors.white),
+            onPressed: () {
+              fontSizeScale.value = (fontSizeScale.value + 0.1).clamp(0.5, 2.0);
+            },
+            tooltip: 'Increase font size',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+          const SizedBox(width: 8),
           if (onToggleExpand != null)
             IconButton(
               icon: const Icon(Icons.close, size: 20, color: Colors.white),
@@ -260,9 +299,13 @@ class _DataReaderHeader extends StatelessWidget {
 }
 
 class _QueryInput extends StatelessWidget {
-  const _QueryInput({required this.controller});
+  const _QueryInput({
+    required this.controller,
+    required this.fontSizeScale,
+  });
 
   final TextEditingController controller;
+  final double fontSizeScale;
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +334,7 @@ class _QueryInput extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: 'e.g., div.class@text, script@text?transform=json',
                 hintStyle: TextStyle(
-                  fontSize: 15,
+                  fontSize: 15 * fontSizeScale,
                   fontFamily: "monospace",
                   fontFamilyFallback: const [
                     'Menlo',
@@ -311,7 +354,7 @@ class _QueryInput extends StatelessWidget {
                 ),
                 isDense: true,
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'monospace',
                 fontFamilyFallback: const [
                   'Menlo',
@@ -320,7 +363,7 @@ class _QueryInput extends StatelessWidget {
                   'Courier',
                   'monospace'
                 ],
-                fontSize: 15,
+                fontSize: 15 * fontSizeScale,
                 color: Colors.white,
               ),
             ),
@@ -336,11 +379,17 @@ class _FilterResultsView extends StatelessWidget {
     required this.valueResult,
     required this.filterResults,
     required this.validationResult,
+    required this.fontSizeScale,
+    required this.showSingleValue,
+    required this.showCollection,
   });
 
   final String? valueResult;
   final List<Map<String, dynamic>> filterResults;
   final ValidationResult? validationResult;
+  final double fontSizeScale;
+  final ValueNotifier<bool> showSingleValue;
+  final ValueNotifier<bool> showCollection;
 
   @override
   Widget build(BuildContext context) {
@@ -353,13 +402,66 @@ class _FilterResultsView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             color: Colors.grey.shade800,
-            child: Text(
-              'Results',
-              style: TextStyle(
-                color: Colors.grey.shade400,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Row(
+              children: [
+                Text(
+                  'Results',
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                // Toggle buttons
+                IconButton(
+                  icon: Icon(
+                    showSingleValue.value
+                        ? Icons.check_box
+                        : Icons.check_box_outline_blank,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  ),
+                  onPressed: () {
+                    showSingleValue.value = !showSingleValue.value;
+                  },
+                  tooltip: 'Toggle single value',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+                Text(
+                  'Single',
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    showCollection.value
+                        ? Icons.check_box
+                        : Icons.check_box_outline_blank,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  ),
+                  onPressed: () {
+                    showCollection.value = !showCollection.value;
+                  },
+                  tooltip: 'Toggle collection',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+                Text(
+                  'List',
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -369,7 +471,7 @@ class _FilterResultsView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. getValue result section
-                  if (valueResult != null)
+                  if (valueResult != null && showSingleValue.value)
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(8),
@@ -394,7 +496,7 @@ class _FilterResultsView extends StatelessWidget {
                               Text(
                                 'Single Value',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 11 * fontSizeScale,
                                   fontWeight: FontWeight.w500,
                                   color: Colors.blue.shade300,
                                 ),
@@ -404,8 +506,8 @@ class _FilterResultsView extends StatelessWidget {
                           const SizedBox(height: 4),
                           SelectableText(
                             valueResult!,
-                            style: const TextStyle(
-                              fontSize: 15,
+                            style: TextStyle(
+                              fontSize: 15 * fontSizeScale,
                               color: Colors.white,
                               fontFamily: 'monospace',
                               fontFamilyFallback: const [
@@ -422,12 +524,12 @@ class _FilterResultsView extends StatelessWidget {
                     ),
 
                   // 2. Collection results
-                  if (filterResults.isNotEmpty) ...[
+                  if (filterResults.isNotEmpty && showCollection.value) ...[
                     Text(
                       'Matches: ${filterResults.length} (showing top 50)',
                       style: TextStyle(
                         color: Colors.grey.shade500,
-                        fontSize: 11,
+                        fontSize: 11 * fontSizeScale,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -466,7 +568,7 @@ class _FilterResultsView extends StatelessWidget {
                               'Courier',
                               'monospace'
                             ],
-                            fontSize: 14,
+                            fontSize: 14 * fontSizeScale,
                             color: isError
                                 ? Colors.red.shade200
                                 : isHtml
@@ -505,7 +607,7 @@ class _FilterResultsView extends StatelessWidget {
                                 ? 'Validation Errors'
                                 : 'Debug Info',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 11 * fontSizeScale,
                               fontWeight: FontWeight.bold,
                               color: !validationResult!.isValid
                                   ? Colors.red.shade300
@@ -515,8 +617,8 @@ class _FilterResultsView extends StatelessWidget {
                           const SizedBox(height: 4),
                           SelectableText(
                             validationResult!.toString(),
-                            style: const TextStyle(
-                              fontSize: 13,
+                            style: TextStyle(
+                              fontSize: 13 * fontSizeScale,
                               color: Colors.white70,
                               fontFamily: 'monospace',
                               fontFamilyFallback: const [
@@ -541,7 +643,7 @@ class _FilterResultsView extends StatelessWidget {
                           'Enter a query to see results',
                           style: TextStyle(
                             color: Colors.grey.shade600,
-                            fontSize: 13,
+                            fontSize: 13 * fontSizeScale,
                           ),
                         ),
                       ),
@@ -560,16 +662,14 @@ class _ResizableSplitView extends HookWidget {
   const _ResizableSplitView({
     required this.left,
     required this.right,
-    this.initialRatio = 0.5,
   });
 
   final Widget left;
   final Widget right;
-  final double initialRatio;
 
   @override
   Widget build(BuildContext context) {
-    final ratio = useState(initialRatio);
+    final ratio = useState(0.5);
 
     return LayoutBuilder(
       builder: (context, constraints) {

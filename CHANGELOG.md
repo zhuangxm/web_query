@@ -1,3 +1,14 @@
+## 0.7.1
+
+### UI Improvements
+
+- **DataQueryWidget Enhancements**:
+  - **Monospaced Font**: Added robust monospaced font stack (`Menlo`, `Monaco`, `Courier New`) for better code readability
+  - **Larger Font Sizes**: Increased default font sizes for query results (Single Value: 15px, Collection: 14px, Validation: 13px)
+  - **Adjustable Font Size**: Added +/- controls in header to adjust font size (50% to 200%)
+  - **Result View Toggles**: Added checkboxes to independently show/hide single value and collection results
+  - **Refactored Architecture**: Extracted UI components into `_DataReaderHeader`, `_QueryInput`, and `_FilterResultsView` for better maintainability
+
 ## 0.7.0
 
 ### New Features
