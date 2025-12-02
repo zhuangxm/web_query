@@ -208,15 +208,84 @@ class QueryPartInfo {
   String toString() {
     final buffer = StringBuffer();
     buffer.write('$scheme:$path');
+
     if (parameters.isNotEmpty) {
-      buffer.write(' [params: ${parameters.keys.join(", ")}]');
+      buffer.write('\n      Parameters: ');
+      final paramDetails = <String>[];
+      parameters.forEach((key, values) {
+        if (values.isEmpty || values.first.isEmpty) {
+          paramDetails.add(key);
+        } else {
+          paramDetails.add('$key=${values.join(", ")}');
+        }
+      });
+      buffer.write(paramDetails.join(', '));
     }
+
     if (transforms.isNotEmpty) {
-      buffer.write(' [transforms: ${transforms.keys.join(", ")}]');
+      buffer.write('\n      Transforms:');
+      transforms.forEach((key, values) {
+        for (var value in values) {
+          buffer.write('\n        • $key');
+          if (value.isNotEmpty) {
+            // Parse and show details for specific transform types
+            if (key == 'transform') {
+              buffer.write(': ${_formatTransformDetail(value)}');
+            } else if (key == 'save') {
+              buffer.write(': save to variable "\$$value"');
+            } else if (key == 'filter') {
+              buffer.write(': filter by "$value"');
+            } else if (key == 'index') {
+              buffer.write(': get index $value');
+            } else if (key == 'keep') {
+              buffer.write(': keep result in output');
+            } else {
+              buffer.write(': $value');
+            }
+          }
+        }
+      });
     }
-    if (isPipe) buffer.write(' [pipe]');
-    if (isRequired) buffer.write(' [required]');
+
+    final flags = <String>[];
+    if (isPipe) flags.add('pipe');
+    if (isRequired) flags.add('required');
+    if (flags.isNotEmpty) {
+      buffer.write('\n      Flags: ${flags.join(", ")}');
+    }
+
     return buffer.toString();
+  }
+
+  /// Format transform details for better readability
+  String _formatTransformDetail(String transform) {
+    if (transform.startsWith('regexp:')) {
+      final pattern = transform.substring(7);
+      // Try to parse regexp pattern
+      final parts = pattern.split('/');
+      if (parts.length >= 3) {
+        return 'regexp pattern="${parts[1]}" replacement="${parts.length > 2 ? parts[2] : ""}"';
+      }
+      return 'regexp $pattern';
+    } else if (transform.startsWith('json:')) {
+      final varName = transform.substring(5);
+      if (varName.isEmpty) {
+        return 'parse as JSON (auto-detect)';
+      }
+      return 'parse as JSON from variable "\$$varName"';
+    } else if (transform.startsWith('jseval:')) {
+      final varNames = transform.substring(7);
+      if (varNames.isEmpty) {
+        return 'evaluate JavaScript (auto-detect)';
+      }
+      return 'evaluate JavaScript with variables: ${varNames.split(",").map((v) => "\$$v").join(", ")}';
+    } else if (transform == 'upper') {
+      return 'convert to UPPERCASE';
+    } else if (transform == 'lower') {
+      return 'convert to lowercase';
+    } else {
+      return transform;
+    }
   }
 }
 
@@ -247,19 +316,50 @@ class QueryInfo {
   @override
   String toString() {
     final buffer = StringBuffer();
-    buffer.writeln('Query Information:');
+    buffer.writeln('Query Structure:');
     buffer.writeln('  Total parts: $totalParts');
+
     if (operators.isNotEmpty) {
-      buffer.writeln('  Operators: ${operators.join(", ")}');
+      buffer.writeln('  Operators:');
+      for (var i = 0; i < operators.length; i++) {
+        final op = operators[i];
+        final opDesc = _getOperatorDescription(op);
+        buffer.writeln('    ${i + 1}. $op - $opDesc');
+      }
     }
+
     if (variables.isNotEmpty) {
-      buffer.writeln('  Variables: ${variables.join(", ")}');
+      buffer.writeln('  Variables: ${variables.map((v) => "\$$v").join(", ")}');
     }
-    buffer.writeln('  Parts:');
+
+    buffer.writeln('  Query Parts:');
     for (var i = 0; i < parts.length; i++) {
-      buffer.writeln('    ${i + 1}. ${parts[i]}');
+      final partLines = parts[i].toString().split('\n');
+      buffer.writeln('    Part ${i + 1}: ${partLines[0]}');
+      for (var j = 1; j < partLines.length; j++) {
+        buffer.writeln('    ${partLines[j]}');
+      }
+      if (i < parts.length - 1) {
+        buffer.writeln();
+      }
     }
     return buffer.toString();
+  }
+
+  /// Get description for operator
+  String _getOperatorDescription(String op) {
+    switch (op) {
+      case '++':
+        return 'Required (both parts must succeed)';
+      case '||':
+        return 'Fallback (use first successful result)';
+      case '>>':
+        return 'Pipe (apply next part to each item)';
+      case '>>>':
+        return 'Array pipe (pass combined result to next part)';
+      default:
+        return op;
+    }
   }
 }
 
@@ -291,26 +391,36 @@ class ValidationResult {
 
   @override
   String toString() {
-    if (isValid && info != null) {
-      // Format query information in a readable way
-      return info!.toString();
-    } else {
-      // Format all errors and warnings with helpful messages
-      final buffer = StringBuffer();
-      if (errors.isNotEmpty) {
-        buffer.writeln('Errors (${errors.length}):');
-        for (var error in errors) {
-          buffer.writeln(error.format(query));
-        }
+    final buffer = StringBuffer();
+
+    // Always show errors first if present
+    if (errors.isNotEmpty) {
+      buffer.writeln('Errors (${errors.length}):');
+      for (var error in errors) {
+        buffer.writeln(error.format(query));
       }
-      if (warnings.isNotEmpty) {
-        buffer.writeln('Warnings (${warnings.length}):');
-        for (var warning in warnings) {
-          buffer.writeln(warning.format(query));
-        }
+      if (warnings.isNotEmpty || info != null) {
+        buffer.writeln();
       }
-      return buffer.toString();
     }
+
+    // Always show warnings if present
+    if (warnings.isNotEmpty) {
+      buffer.writeln('Warnings (${warnings.length}):');
+      for (var warning in warnings) {
+        buffer.writeln(warning.format(query));
+      }
+      if (info != null) {
+        buffer.writeln();
+      }
+    }
+
+    // Show query structure if valid and info is available
+    if (isValid && info != null) {
+      buffer.write(info!.toString());
+    }
+
+    return buffer.toString();
   }
 }
 
@@ -814,46 +924,70 @@ class QueryValidator {
       // Skip if character is escaped
       if (pattern.contains('\\$char')) continue;
 
-      // Check for unescaped special character
-      if (pattern.contains(char)) {
-        // Common patterns that are likely intentional - check more carefully
-        if (char == '.') {
-          // Check if all dots are part of .*, .+, or .?
-          var allDotsAreIntentional = true;
-          for (var i = 0; i < pattern.length; i++) {
-            if (pattern[i] == '.') {
-              // Check if followed by *, +, or ?
-              if (i + 1 < pattern.length &&
-                  (pattern[i + 1] == '*' ||
-                      pattern[i + 1] == '+' ||
-                      pattern[i + 1] == '?')) {
-                continue; // This dot is intentional
-              }
-              allDotsAreIntentional = false;
-              break;
+      // Find all occurrences of this character
+      var foundSuspicious = false;
+      for (var i = 0; i < pattern.length; i++) {
+        if (pattern[i] != char) continue;
+
+        // Check if this character is likely intentional based on context
+        var isIntentional = false;
+
+        // Check what comes before this character
+        if (i > 0) {
+          final prevChar = pattern[i - 1];
+
+          // Quantifiers after valid patterns are intentional
+          if (char == '*' || char == '+' || char == '?') {
+            // After dot, escape sequence, character class, or closing paren/bracket
+            if (prevChar == '.' ||
+                prevChar == ']' ||
+                prevChar == ')' ||
+                (i >= 2 && pattern[i - 2] == '\\')) {
+              isIntentional = true;
             }
           }
-          if (allDotsAreIntentional) continue;
         }
-        if (char == '*' && pattern.contains('.*')) continue; // .* is common
-        if (char == '+' && pattern.contains('.+')) continue; // .+ is common
-        if (char == '?' && pattern.contains('.?')) continue; // .? is common
-        if (char == '^' && pattern.startsWith('^'))
-          continue; // ^ at start is intentional
-        if (char == '\$' && pattern.endsWith('\$'))
-          continue; // $ at end is intentional
 
-        // Warn about potentially unescaped special character
-        final charPos = pattern.indexOf(char);
-        warnings.add(ValidationWarning(
-          message: 'Unescaped special character "$char" in regexp pattern',
-          position: regexpStart + charPos,
-          suggestion:
-              'In regex, "$char" $meaning. If you want a literal "$char", use "\\$char"',
-          queryPartIndex: partIndex,
-        ));
-        break; // Only warn once per pattern
+        // Special cases for specific characters
+        if (char == '.') {
+          // Check if followed by quantifier (*, +, ?)
+          if (i + 1 < pattern.length &&
+              (pattern[i + 1] == '*' ||
+                  pattern[i + 1] == '+' ||
+                  pattern[i + 1] == '?')) {
+            isIntentional = true;
+          }
+        } else if (char == '^' && i == 0) {
+          isIntentional = true; // ^ at start is intentional
+        } else if (char == '\$' && i == pattern.length - 1) {
+          isIntentional = true; // $ at end is intentional
+        } else if (char == '(' ||
+            char == ')' ||
+            char == '[' ||
+            char == ']' ||
+            char == '{' ||
+            char == '}' ||
+            char == '|') {
+          // These are almost always intentional in regex
+          isIntentional = true;
+        }
+
+        // If we found a suspicious use, warn about it
+        if (!isIntentional) {
+          foundSuspicious = true;
+          warnings.add(ValidationWarning(
+            message: 'Unescaped special character "$char" in regexp pattern',
+            position: regexpStart + i,
+            suggestion:
+                'In regex, "$char" $meaning. If you want a literal "$char", use "\\$char"',
+            queryPartIndex: partIndex,
+          ));
+          break; // Only warn once per character type
+        }
       }
+
+      if (foundSuspicious)
+        break; // Only warn about one character type per pattern
     }
   }
 

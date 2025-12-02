@@ -114,10 +114,10 @@ void main() {
       final result = query.validate();
 
       final str = result.toString();
-      expect(str, contains('Query Information:'));
+      expect(str, contains('Query Structure:'));
       expect(str, contains('Total parts: 2'));
-      expect(str, contains('Operators: ++'));
-      expect(str, contains('Variables: x'));
+      expect(str, contains('++'));
+      expect(str, contains('\$x'));
     });
 
     test('toJson should include query info for valid query', () {
