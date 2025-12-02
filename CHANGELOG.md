@@ -1,13 +1,16 @@
-## 0.6.6
-
-*   Add support for variable arithmetic in query strings using `${expression}` syntax (e.g., `${index + 1}`).
-*   Add `function_tree` dependency for expression evaluation.
-*   Fix `>>>` operator to correctly handle JSON array piping.
-*   Fix `jseval` regression where JS runtime wasn't being reset.
-
-## 0.6.5
+## 0.7.0
 
 ### New Features
+
+- **Query Validation API**: Added comprehensive query validation with detailed error detection and suggestions
+  - `QueryString.validate()` - Validate query syntax without executing
+  - Detects invalid schemes with typo suggestions (e.g., "jsn" → "json")
+  - Validates parameter syntax and suggests corrections
+  - Warns about common regexp pattern mistakes (unescaped special characters)
+  - Warns about template variable issues (missing `$`, empty variables, whitespace)
+  - Returns `ValidationResult` with errors, warnings, and query structure information
+  - Position tracking for all errors and warnings
+  - Query part indexing to identify which part contains issues
 
 - **Index Parameter**: Added `?index=` parameter to select the nth element from query results
   - Static index: `*div@?index=2` - Get 3rd element (0-indexed)
@@ -15,12 +18,77 @@
   - Negative index: `*div@?index=-1` - Get last element
   - Works with any list result from queries
   - Can be combined with other transforms: `*div@?index=1&transform=upper`
+  - Supports variable arithmetic: `?index=${i + 1}` for dynamic indexing
 
 - **Array Pipe Operator (`>>>`)**: Added `>>>` operator to treat previous results as a whole JSON array
   - Enables JSON range operations: `*div@ >>> json:0-2` - Get first 3 elements
   - Multi-index selection: `*div@ >>> json:1,3,5` - Get elements at specific indices
   - Can be combined with regular pipe: `*div@ >>> json:0-4 >> json:name` - Get first 5, then extract name from each
-  - Difference from `>>`: `>>` pipes each element individually, `>>>` treats the entire result as one JSON array
+  - **Key Difference from `>>`**: 
+    - `>>` pipes each element individually (one at a time)
+    - `>>>` treats the entire result as one JSON array (all at once)
+  - Example: `*div@text >> json:length` gets length of each text vs `*div@text >>> json:length` gets count of all divs
+
+- **Variable Arithmetic**: Added support for arithmetic expressions in variables
+  - Use `${expression}` syntax for calculations (e.g., `${index + 1}`, `${count * 2}`)
+  - Works in paths, index parameters, and templates
+  - Powered by `function_tree` package for expression evaluation
+
+- **Enhanced DataQueryWidget UI**:
+  - Integrated validation feedback panel showing errors, warnings, and query structure
+  - Real-time validation as you type (debounced)
+  - Color-coded feedback (red for errors, orange for warnings, green for valid)
+  - Scrollable filter area with proper layout
+  - Displays results in order: getValue() → getCollectionValue() → Validation feedback
+  - Each section takes only the space it needs
+
+### Improvements
+
+- **Smart Regex Validation**: Improved regex pattern validation to avoid false positives
+  - Correctly recognizes valid patterns like `\d+`, `\w+`, `[a-z]+`, `(abc)+`
+  - Only warns about genuinely suspicious patterns like `test.com` (unescaped dot)
+  - Context-aware checking for quantifiers (`*`, `+`, `?`)
+
+- **Better Error Messages**: All validation errors include:
+  - Exact position in query string
+  - Visual pointer to error location
+  - Helpful suggestions for fixes
+  - Example of correct syntax
+  - Query part index for multi-part queries
+
+### Bug Fixes
+
+- Fixed `>>>` operator to correctly handle JSON array piping
+- Fixed `jseval` regression where JS runtime wasn't being reset
+- Fixed validation warnings not showing when query is valid
+- Fixed false positive warnings for valid regex quantifiers
+
+### API Examples
+
+```dart
+// Validate a query
+final query = QueryString('jsn:items?save=x?keep');
+final result = query.validate();
+
+if (!result.isValid) {
+  print('Errors: ${result.errors.length}');
+  for (var error in result.errors) {
+    print(error.format(query.query));
+  }
+}
+
+// Index parameter
+'*div@?index=2'                    // Get 3rd element
+'*div@?index=-1'                   // Get last element
+'*div@?index=${idx}'               // Use variable
+'*div@?index=${i + 1}'             // Arithmetic
+
+// Array pipe vs regular pipe
+'*div@text >> json:length'         // Length of each text
+'*div@text >>> json:length'        // Count of all divs
+'*div@ >>> json:0-2'               // First 3 elements as array
+'*div@ >> json:name'               // Extract name from each
+```
 
 ### Technical Details
 
@@ -29,7 +97,14 @@
 - Index transform is applied to the result list after other transforms
 - Supports negative indexing (e.g., -1 for last element)
 - Returns null for out-of-bounds indices or empty lists
-- `>>>` operator implementation splits query at `>>>`, executes first part, converts result to JSON, then executes second part
+- `>>>` operator splits query at `>>>`, executes first part, converts result to JSON, then executes second part
+- Added `function_tree` dependency for expression evaluation
+
+### Documentation
+
+- Added `VALIDATION_GUIDE.md` with comprehensive validation documentation
+- Added `VALIDATION_ERRORS.md` with examples of all error types
+- Updated README with validation examples and operator differences
 
 ## 0.6.4
 

@@ -70,7 +70,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.6.4
+  web_query: ^0.7.0
 ```
 
 Then run:
@@ -301,6 +301,39 @@ Parameters modify query behavior and transform results:
 'div/@text?transform=upper&filter=important'
 ```
 
+#### Index Parameter
+
+Select a specific element from query results using `?index=`:
+
+```dart
+// Static index (0-based)
+'*div@?index=0'                    // Get first element
+'*div@?index=2'                    // Get 3rd element
+'*div@text?index=1'                // Get 2nd div's text
+
+// Negative index (from end)
+'*div@?index=-1'                   // Get last element
+'*div@?index=-2'                   // Get second-to-last element
+
+// Variable index
+'.link@href?regexp=/\d+/&save=idx ++ *div@?index=${idx}'
+// Extract number from link, use it as index
+
+// With arithmetic
+'json:page?save=p ++ *div@?index=${p * 10}'
+// Calculate index from variable
+
+// Combined with transforms
+'*div@text?index=1&transform=upper'
+// Get 2nd div's text and uppercase it
+```
+
+**Notes:**
+- Returns `null` for out-of-bounds indices
+- Works with any list result (HTML elements, JSON arrays, etc.)
+- Applied after other transforms
+- Supports variable substitution and arithmetic expressions
+
 ### Transforms
 
 Transforms modify the extracted data:
@@ -401,9 +434,11 @@ Extract JSON data from `<script>` tags or JavaScript variables:
 'script/@text?transform=json:count'           // Matches var count = 42;
 ```
 
-#### Query Piping (`>>`)
+#### Query Piping (`>>` and `>>>`)
 
 Pass the output of one query as the input to the next:
+
+**Regular Pipe (`>>`)** - Processes each element individually:
 
 ```dart
 // Get container -> Get paragraphs -> Get text
@@ -411,7 +446,50 @@ Pass the output of one query as the input to the next:
 
 // Get JSON items -> Get tags -> Flatten all tags
 'json:items/* >> json:tags/*'
+
+// Each element is processed separately
+'*div@text >> json:length'
+// Gets length of each div's text individually
 ```
+
+**Array Pipe (`>>>`)** - Treats all results as one JSON array:
+
+```dart
+// Get first 3 elements
+'*div@ >>> json:0-2'
+
+// Get specific indices
+'*div@ >>> json:1,3,5'
+// Returns elements at positions 1, 3, and 5
+
+// Get count of all elements
+'*div@text >>> json:length'
+// Returns total number of divs (not length of each text)
+
+// Combine with regular pipe
+'*div@ >>> json:0-4 >> json:name'
+// Get first 5 elements, then extract name from each
+```
+
+**Key Differences:**
+
+| Feature | `>>` (Regular Pipe) | `>>>` (Array Pipe) |
+|---------|---------------------|-------------------|
+| Processing | One element at a time | All elements as array |
+| Use case | Transform each item | Array operations |
+| Example | `*div >> json:name` | `*div >>> json:0-2` |
+| Result | Flattened list | Array subset |
+
+**When to use `>>`:**
+- Extracting properties from each element
+- Transforming each item individually
+- Nested parsing (HTML in JSON)
+
+**When to use `>>>`:**
+- Array slicing and indexing
+- Getting array length/count
+- Range selection
+- Multi-index selection
 
 #### Special Selectors
 

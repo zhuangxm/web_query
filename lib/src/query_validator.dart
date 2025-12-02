@@ -986,8 +986,9 @@ class QueryValidator {
         }
       }
 
-      if (foundSuspicious)
+      if (foundSuspicious) {
         break; // Only warn about one character type per pattern
+      }
     }
   }
 
