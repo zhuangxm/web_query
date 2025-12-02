@@ -10,9 +10,11 @@ import 'src/js_executor.dart';
 import 'src/json_query.dart';
 import 'src/page_data.dart';
 import 'src/query_result.dart';
+import 'src/query_validator.dart';
 import 'src/url_query.dart';
 
 export 'src/page_data.dart';
+export 'src/query_validator.dart';
 export 'src/transforms.dart' show DiscardMarker;
 
 abstract class DataPicker {
@@ -169,6 +171,15 @@ class QueryString extends DataPicker {
             })
             .$3
             .toList();
+
+  /// Validates the query string syntax and returns detailed results
+  /// This method does not affect query execution
+  ValidationResult validate() {
+    if (query == null || query!.isEmpty) {
+      return ValidationResult(query ?? '', [], []);
+    }
+    return QueryValidator.validate(query!);
+  }
 
   dynamic execute(PageNode node,
       {bool simplify = true, Map<String, dynamic>? initialVariables}) {

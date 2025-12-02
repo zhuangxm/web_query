@@ -17,6 +17,7 @@ A powerful Flutter library for querying HTML and JSON data using a simple, intui
   - [Transforms](#transforms)
   - [Filters](#filters)
   - [Query Chaining](#query-chaining)
+  - [Query Validation](#query-validation)
 - [Advanced Usage](#advanced-usage)
 - [API Reference](#api-reference)
 - [Migration Guide](#migration-guide)
@@ -54,6 +55,14 @@ A powerful Flutter library for querying HTML and JSON data using a simple, intui
 - Fallback queries with `||`
 - Required queries with `++`
 - Per-query transformations
+
+✅ **Query Validation**
+
+- Optional syntax validation with detailed error messages
+- Smart typo suggestions and corrections
+- Position-based error reporting
+- Query information extraction
+- JSON output for logging and APIs
 
 ## Installation
 
@@ -616,6 +625,299 @@ Combine multiple queries for fallback or required data:
 // Uppercase JSON title, or lowercase h1
 ```
 
+### Query Validation
+
+The library provides comprehensive query validation to help you catch syntax errors and understand your queries better. Validation is **optional** and separate from query execution, so validation bugs won't prevent your queries from running.
+
+#### Basic Validation
+
+Call `validate()` on any QueryString to check for syntax errors:
+
+```dart
+final query = QueryString('json:items?save=x&keep ++ template:${x}');
+final result = query.validate();
+
+if (result.isValid) {
+  print('Query is valid!');
+  print(result); // Shows detailed query information
+} else {
+  print('Query has errors:');
+  print(result); // Shows all errors with helpful messages
+}
+```
+
+#### Validation Features
+
+✅ **Comprehensive Error Detection**
+- Invalid scheme names (e.g., `jsn:` instead of `json:`)
+- Missing separators (e.g., `json items` instead of `json:items`)
+- Malformed parameters (e.g., `?save=x?keep` instead of `?save=x&keep`)
+- Unmatched variable syntax (e.g., `${var` without closing `}`)
+- Invalid operators (e.g., `+` instead of `++`)
+
+✅ **Smart Suggestions**
+- Typo correction for scheme names
+- Example corrections for common mistakes
+- Position indicators showing exactly where errors occur
+
+✅ **Query Information**
+- Detailed breakdown of query parts
+- List of operators used
+- Variables extracted
+- Parameters and transforms per part
+
+#### ValidationResult API
+
+The `validate()` method returns a `ValidationResult` object:
+
+```dart
+class ValidationResult {
+  bool get isValid;              // True if no errors
+  bool get hasWarnings;          // True if warnings exist
+  List<ValidationError> errors;  // All errors found
+  List<ValidationWarning> warnings; // Potential issues
+  QueryInfo? info;               // Detailed query info (when valid)
+  
+  String toString();             // Human-readable format
+  String toJson();               // JSON format for logging/APIs
+}
+```
+
+#### Common Validation Errors
+
+##### Invalid Scheme
+
+```dart
+// ❌ Error: Invalid scheme
+final query = QueryString('jsn:items');
+final result = query.validate();
+
+// Output:
+// Error at position 0: Invalid scheme 'jsn'
+// 
+// Query: jsn:items
+//        ^^^
+// 
+// Did you mean 'json'? Valid schemes are: html, json, url, template
+```
+
+##### Missing Scheme Separator
+
+```dart
+// ❌ Error: Missing colon after scheme
+final query = QueryString('json items');
+final result = query.validate();
+
+// Output:
+// Error at position 4: Missing ":" after scheme "json"
+// 
+// Query: json items
+//            ^
+// 
+// Use: json:items
+```
+
+##### Parameter Syntax Error
+
+```dart
+// ❌ Error: Multiple ? without &
+final query = QueryString('json:items?save=x?keep');
+final result = query.validate();
+
+// Output:
+// Error at position 20: Multiple "?" found in parameters
+// 
+// Query: json:items?save=x?keep
+//                         ^
+// 
+// Example: ?param1=value&param2=value
+```
+
+##### Unmatched Variable Syntax
+
+```dart
+// ❌ Error: Unclosed variable
+final query = QueryString('template:Hello ${name');
+final result = query.validate();
+
+// Output:
+// Error at position 22: Unmatched "${" in variable syntax
+// 
+// Query: template:Hello ${name
+//                       ^^
+// 
+// Variables should be: ${varName}
+```
+
+##### Invalid Operator
+
+```dart
+// ❌ Error: Invalid operator
+final query = QueryString('json:a + json:b');
+final result = query.validate();
+
+// Output:
+// Error at position 7: Invalid operator "+"
+// 
+// Query: json:a + json:b
+//               ^
+// 
+// Valid operators are: ++, ||, >>, >>>
+```
+
+#### Query Information (Valid Queries)
+
+When a query is valid, `ValidationResult` provides detailed information:
+
+```dart
+final query = QueryString('json:items?save=x&keep ++ template:${x}');
+final result = query.validate();
+
+print(result);
+
+// Output:
+// Query Information:
+//   Total parts: 2
+//   Operators: ++
+//   Variables: x
+//   Parts:
+//     1. json:items [params: save, keep]
+//     2. template:${x}
+```
+
+#### JSON Output
+
+Get validation results as JSON for logging or API integration:
+
+```dart
+final query = QueryString('jsn:items');
+final result = query.validate();
+
+print(result.toJson());
+
+// Output:
+// {
+//   "query": "jsn:items",
+//   "isValid": false,
+//   "errors": [
+//     {
+//       "message": "Invalid scheme 'jsn'",
+//       "position": 0,
+//       "suggestion": "Did you mean 'json'?",
+//       "example": "Valid schemes are: html, json, url, template"
+//     }
+//   ],
+//   "warnings": [],
+//   "info": null
+// }
+```
+
+#### Multiple Errors
+
+Validation reports **all** errors found, not just the first one:
+
+```dart
+final query = QueryString('jsn:items?save=x?keep ++ template:${name');
+final result = query.validate();
+
+print(result);
+
+// Output:
+// Errors (3):
+// Error at position 0: Invalid scheme 'jsn'
+// ...
+// Error at position 18: Multiple "?" found in parameters
+// ...
+// Error at position 41: Unmatched "${" in variable syntax
+// ...
+```
+
+#### Validation Best Practices
+
+**Development & Testing:**
+```dart
+test('query syntax is valid', () {
+  final query = QueryString(myQueryString);
+  final result = query.validate();
+  
+  expect(result.isValid, isTrue);
+  expect(result.info!.totalParts, equals(2));
+  expect(result.info!.operators, contains('++'));
+});
+```
+
+**Debugging:**
+```dart
+// Validate during development to catch issues early
+final query = QueryString(complexQueryString);
+final result = query.validate();
+
+if (!result.isValid) {
+  print('Fix these errors:');
+  print(result);
+  return;
+}
+
+// Execute only if valid
+final data = query.execute(node);
+```
+
+**Production (Optional):**
+```dart
+// Validation is optional - queries execute normally without it
+final query = QueryString(userInput);
+
+// Optionally validate in debug mode
+if (kDebugMode) {
+  final result = query.validate();
+  if (result.hasWarnings) {
+    logger.warn('Query warnings: ${result.toJson()}');
+  }
+}
+
+// Execute regardless of validation
+final data = query.execute(node);
+```
+
+**API/Logging:**
+```dart
+// Send validation results to monitoring/logging systems
+final query = QueryString(userQuery);
+final result = query.validate();
+
+await analytics.logEvent('query_validation', {
+  'query': result.query,
+  'isValid': result.isValid,
+  'errorCount': result.errors.length,
+  'details': result.toJson(),
+});
+```
+
+#### Validation Error Reference
+
+| Error Type | Cause | Solution |
+|------------|-------|----------|
+| **Invalid scheme** | Scheme not in valid list | Use: `html:`, `json:`, `url:`, or `template:` |
+| **Missing separator** | Scheme without `:` | Add `:` after scheme: `json:path` |
+| **Parameter syntax** | Multiple `?` without `&` | Use `&` for additional params: `?a=1&b=2` |
+| **Variable syntax** | Unmatched `${` or `}` | Ensure variables are: `${varName}` |
+| **Invalid operator** | Unknown operator | Use: `++`, `\|\|`, `>>`, or `>>>` |
+
+#### Why Validation is Separate
+
+Validation is **opt-in** and doesn't run automatically because:
+
+1. **Performance**: Validation adds minimal overhead, but skipping it makes queries slightly faster
+2. **Safety**: Bugs in validation logic won't prevent queries from executing
+3. **Flexibility**: You can validate in development/testing but skip in production
+4. **Debugging**: You can debug validation issues independently from query execution
+
+#### Additional Resources
+
+- **[Validation Guide](VALIDATION_GUIDE.md)** - Comprehensive guide with examples and best practices
+- **[Error Reference](VALIDATION_ERRORS.md)** - Quick reference for common errors and fixes
+- **[Migration Guide](#migration-guide)** - Information about adopting validation in existing projects
+
 ## Advanced Usage
 
 ### Complete Example: Web Scraping
@@ -1032,6 +1334,65 @@ import 'package:web_query/ui.dart';
 
 HtmlTreeView(document: parsedDocument)
 ```
+
+## Migration Guide
+
+### Query Validation (New Feature)
+
+The query validation feature is **completely additive** and requires no migration. It's an opt-in feature that doesn't affect existing code.
+
+**What's New:**
+- New `validate()` method on `QueryString` class
+- Returns `ValidationResult` with errors, warnings, and query information
+- Validation is optional and separate from query execution
+
+**No Breaking Changes:**
+- All existing queries continue to work exactly as before
+- Validation is opt-in (call `validate()` explicitly)
+- Query execution is unchanged
+
+**How to Use:**
+```dart
+// Your existing code works unchanged
+final query = QueryString('json:items');
+final data = query.execute(node);
+
+// Optionally add validation
+final result = query.validate();
+if (!result.isValid) {
+  print('Query has errors: ${result}');
+}
+```
+
+See the [Query Validation](#query-validation) section for detailed usage examples and the [Validation Guide](VALIDATION_GUIDE.md) for comprehensive documentation.
+
+### Variable Discard Behavior
+
+The `?save=` parameter now automatically omits results from final output unless `&keep` is specified.
+
+**Old Behavior:**
+```dart
+// Results were kept by default
+'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
+// Returned: ["Alice", "Smith", "Alice Smith"]
+```
+
+**New Behavior:**
+```dart
+// Results are omitted by default (cleaner templates)
+'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
+// Returns: "Alice Smith"
+
+// Use &keep to include intermediate results
+'json:firstName?save=fn&keep ++ json:lastName?save=ln&keep ++ template:${fn} ${ln}'
+// Returns: ["Alice", "Smith", "Alice Smith"]
+```
+
+**Migration:**
+- If you want the old behavior, add `&keep` to your `?save=` parameters
+- If you prefer cleaner output (recommended), no changes needed
+
+See the [Variables and Templates](#variables-and-templates) section for more details.
 
 ## Contributing
 
