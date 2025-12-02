@@ -177,13 +177,15 @@ class QueryString extends DataPicker {
       // Split at >>> and handle specially
       final parts = query!.split('>>>');
       if (parts.length == 2) {
-        // Execute first part
-        final firstResult = QueryString(parts[0].trim())
-            .execute(node, simplify: false, initialVariables: initialVariables);
+        // Execute first part and capture variables
+        final firstExecution = QueryString(parts[0].trim())
+            ._executeQueriesWithVariables(node,
+                simplify: false, initialVariables: initialVariables);
 
         // Convert result to list if it isn't already
-        final resultList =
-            (firstResult is Iterable) ? firstResult.toList() : [firstResult];
+        final resultList = (firstExecution.result is Iterable)
+            ? firstExecution.result.toList()
+            : [firstExecution.result];
 
         // Convert to JSON array - extract text from PageNodes
         final arrayData = resultList.map((item) {
@@ -200,9 +202,9 @@ class QueryString extends DataPicker {
             PageData(node.pageData.url, '', jsonData: jsonData);
         final arrayNode = arrayPageData.getRootElement();
 
-        // Execute second part on the JSON array
+        // Execute second part on the JSON array with captured variables
         return QueryString(parts[1].trim()).execute(arrayNode,
-            simplify: simplify, initialVariables: initialVariables);
+            simplify: simplify, initialVariables: firstExecution.variables);
       }
     }
 
@@ -235,8 +237,9 @@ class QueryString extends DataPicker {
     }
   }
 
-  dynamic _executeQueries(PageNode node,
-      {bool simplify = true, Map<String, dynamic>? initialVariables}) {
+  ({dynamic result, Map<String, dynamic> variables})
+      _executeQueriesWithVariables(PageNode node,
+          {bool simplify = true, Map<String, dynamic>? initialVariables}) {
     final variables = <String, dynamic>{...?initialVariables};
     QueryResult result = QueryResult([]);
     final hasMultipleQueries = _queries.length > 1;
@@ -287,7 +290,7 @@ class QueryString extends DataPicker {
     result =
         QueryResult(result.data.where((e) => e is! DiscardMarker).toList());
 
-    return !simplify
+    final finalResult = !simplify
         ? result.data.map((e) => e is Element
             ? PageNode(node.pageData, element: e)
             : PageNode(node.pageData, jsonData: e))
@@ -296,6 +299,15 @@ class QueryString extends DataPicker {
             : result.data.length == 1
                 ? result.data.first
                 : result.data;
+
+    return (result: finalResult, variables: variables);
+  }
+
+  dynamic _executeQueries(PageNode node,
+      {bool simplify = true, Map<String, dynamic>? initialVariables}) {
+    return _executeQueriesWithVariables(node,
+            simplify: simplify, initialVariables: initialVariables)
+        .result;
   }
 
   String _resolveString(String input, Map<String, dynamic> variables) {
