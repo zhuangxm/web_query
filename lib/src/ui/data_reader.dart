@@ -37,6 +37,7 @@ class DataQueryWidget extends HookWidget {
     final queryController = useTextEditingController();
     final filterResults = useState<List<Map<String, dynamic>>>([]);
     final valueResult = useState<String?>(null);
+    final validationResult = useState<ValidationResult?>(null);
 
     // Memoize filtered HTML to avoid re-parsing on every rebuild
     final filteredHtml = useMemoized(
@@ -76,6 +77,15 @@ class DataQueryWidget extends HookWidget {
             final value = queryString.getValue(root, separator: " ");
             valueResult.value = value;
 
+            // Always validate to show query structure
+            final validation = queryString.validate();
+            validationResult.value = validation;
+            // ignore: avoid_print
+            print('Validation result: isValid=${validation.isValid}, '
+                'errors=${validation.errors.length}, '
+                'warnings=${validation.warnings.length}, '
+                'hasInfo=${validation.info != null}');
+
             // Try to get collection first
             final collection = queryString.getCollectionValue(root);
             if (collection.isNotEmpty) {
@@ -91,9 +101,27 @@ class DataQueryWidget extends HookWidget {
                 }
               }).toList();
             } else {
+              // Empty result
               filterResults.value = [];
             }
           } catch (e) {
+            // Error occurred - validate query to show helpful feedback
+            try {
+              final queryString = QueryString(query);
+              final validation = queryString.validate();
+              validationResult.value = validation;
+              // ignore: avoid_print
+              print(
+                  'Error case - Validation result: isValid=${validation.isValid}, '
+                  'errors=${validation.errors.length}, '
+                  'warnings=${validation.warnings.length}');
+            } catch (validationError) {
+              // If validation itself fails, just show the original error
+              // ignore: avoid_print
+              print('Validation failed: $validationError');
+              validationResult.value = null;
+            }
+
             filterResults.value = [
               {'type': FilterResultType.error, 'value': 'Error: $e'}
             ];
@@ -332,6 +360,107 @@ class DataQueryWidget extends HookWidget {
                                     ],
                                   ),
                                 ),
+                              // Validation feedback section - show for errors, warnings, OR valid queries with info
+                              if (validationResult.value != null &&
+                                  (!validationResult.value!.isValid ||
+                                      (validationResult.value!.hasWarnings &&
+                                          validationResult.value!.info ==
+                                              null) ||
+                                      validationResult.value!.info !=
+                                          null)) ...[
+                                // ignore: avoid_print
+                                Builder(builder: (context) {
+                                  print('Showing validation panel: '
+                                      'isValid=${validationResult.value!.isValid}, '
+                                      'hasWarnings=${validationResult.value!.hasWarnings}, '
+                                      'hasInfo=${validationResult.value!.info != null}');
+                                  return const SizedBox.shrink();
+                                }),
+                                Container(
+                                  constraints:
+                                      const BoxConstraints(maxHeight: 300),
+                                  decoration: BoxDecoration(
+                                    color: !validationResult.value!.isValid
+                                        ? Colors.red.shade900
+                                            .withValues(alpha: 0.3)
+                                        : validationResult.value!.hasWarnings
+                                            ? Colors.orange.shade900
+                                                .withValues(alpha: 0.3)
+                                            : Colors.green.shade900
+                                                .withValues(alpha: 0.3),
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey.shade700,
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              !validationResult.value!.isValid
+                                                  ? Icons.error
+                                                  : validationResult
+                                                          .value!.hasWarnings
+                                                      ? Icons.warning
+                                                      : Icons.info_outline,
+                                              size: 14,
+                                              color: !validationResult
+                                                      .value!.isValid
+                                                  ? Colors.red.shade300
+                                                  : validationResult
+                                                          .value!.hasWarnings
+                                                      ? Colors.orange.shade300
+                                                      : Colors.green.shade300,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              !validationResult.value!.isValid
+                                                  ? 'Query Validation Errors'
+                                                  : validationResult
+                                                          .value!.hasWarnings
+                                                      ? 'Query Warnings'
+                                                      : 'Query Structure',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: !validationResult
+                                                        .value!.isValid
+                                                    ? Colors.red.shade300
+                                                    : validationResult
+                                                            .value!.hasWarnings
+                                                        ? Colors.orange.shade300
+                                                        : Colors.green.shade300,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Flexible(
+                                        child: SingleChildScrollView(
+                                          padding: const EdgeInsets.fromLTRB(
+                                              8, 0, 8, 8),
+                                          child: SelectableText(
+                                            validationResult.value!.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.white,
+                                              fontFamily: 'monospace',
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               // Collection results
                               Expanded(
                                 child: Container(
@@ -339,7 +468,11 @@ class DataQueryWidget extends HookWidget {
                                   child: filterResults.value.isEmpty
                                       ? Center(
                                           child: Text(
-                                            'Enter a QueryString to filter data',
+                                            validationResult.value != null &&
+                                                    !validationResult
+                                                        .value!.isValid
+                                                ? 'Fix validation errors above to see results'
+                                                : 'Enter a QueryString to filter data',
                                             style: TextStyle(
                                               color: Colors.grey.shade400,
                                               fontSize: 14,
