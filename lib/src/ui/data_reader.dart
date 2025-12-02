@@ -79,11 +79,6 @@ class DataQueryWidget extends HookWidget {
             // Always validate to show query structure
             final validation = queryString.validate();
             validationResult.value = validation;
-            // ignore: avoid_print
-            print('Validation result: isValid=${validation.isValid}, '
-                'errors=${validation.errors.length}, '
-                'warnings=${validation.warnings.length}, '
-                'hasInfo=${validation.info != null}');
 
             // Try to get collection first
             final collection = queryString.getCollectionValue(root);
@@ -109,15 +104,7 @@ class DataQueryWidget extends HookWidget {
               final queryString = QueryString(query);
               final validation = queryString.validate();
               validationResult.value = validation;
-              // ignore: avoid_print
-              print(
-                  'Error case - Validation result: isValid=${validation.isValid}, '
-                  'errors=${validation.errors.length}, '
-                  'warnings=${validation.warnings.length}');
             } catch (validationError) {
-              // If validation itself fails, just show the original error
-              // ignore: avoid_print
-              print('Validation failed: $validationError');
               validationResult.value = null;
             }
 
@@ -153,392 +140,477 @@ class DataQueryWidget extends HookWidget {
       ),
       child: Column(
         children: [
-          // Header
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.blue.shade600,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(6),
-                topRight: Radius.circular(6),
-              ),
-            ),
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // View mode toggle
-                SegmentedButton<DataViewMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: DataViewMode.html,
-                      label: Text('HTML', style: TextStyle(fontSize: 12)),
-                    ),
-                    ButtonSegment(
-                      value: DataViewMode.json,
-                      label: Text('JSON', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                  selected: {viewMode.value},
-                  onSelectionChanged: (Set<DataViewMode> newSelection) {
-                    viewMode.value = newSelection.first;
-                  },
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return Colors.white;
-                      }
-                      return Colors.blue.shade500;
-                    }),
-                    foregroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return Colors.blue.shade700;
-                      }
-                      return Colors.white;
-                    }),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Spacer(),
-                if (onToggleExpand != null)
-                  IconButton(
-                    icon:
-                        const Icon(Icons.close, size: 20, color: Colors.white),
-                    onPressed: onToggleExpand,
-                    tooltip: 'Close Data Reader',
-                  ),
-              ],
-            ),
+          _DataReaderHeader(
+            title: title,
+            viewMode: viewMode,
+            onToggleExpand: onToggleExpand,
           ),
-          // Content
+          _QueryInput(controller: queryController),
           Expanded(
-            child: Row(
-              children: [
-                // Data display
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    color: Colors.grey.shade800,
-                    child: pageData == null
-                        ? const Center(
-                            child: Text(
-                              'No data loaded',
-                              style: TextStyle(color: Colors.grey),
-                            ),
+            child: _ResizableSplitView(
+              left: Container(
+                color: Colors.grey.shade800,
+                child: pageData == null
+                    ? const Center(
+                        child: Text(
+                          'No data loaded',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : viewMode.value == DataViewMode.html
+                        ? HtmlTreeView(
+                            document: parsedDocument,
                           )
-                        : viewMode.value == DataViewMode.html
-                            ? HtmlTreeView(
-                                document: parsedDocument,
-                              )
-                            : JsonTreeView(
-                                json: pageData!.jsonData,
-                              ),
-                  ),
-                ),
-                // Query filter panel
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Query input
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade800,
-                          border: Border(
-                              left: BorderSide(
-                                  color: Colors.grey.shade700, width: 1)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'QueryString Filter',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            TextField(
-                              controller: queryController,
-                              decoration: InputDecoration(
-                                hintText: 'e.g., div.class@, h1@text',
-                                hintStyle: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade500,
-                                ),
-                                border: const OutlineInputBorder(),
-                                filled: true,
-                                fillColor: Colors.grey.shade700,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 8,
-                                ),
-                                isDense: true,
-                              ),
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 11,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Filter results - Single scrollable area
-                      Expanded(
-                        child: Container(
-                          color: Colors.grey.shade900,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // 1. getValue result section (first)
-                                if (valueResult.value != null)
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade900
-                                          .withValues(alpha: 0.3),
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.grey.shade700,
-                                          width: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.text_fields,
-                                              size: 14,
-                                              color: Colors.blue.shade300,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'getValue() Result',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w500,
-                                                color: Colors.blue.shade300,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        SelectableText(
-                                          valueResult.value!,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.white,
-                                            fontFamily: 'monospace',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                // 2. Collection results (second)
-                                if (filterResults.value.isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.grey.shade700,
-                                          width: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          'getCollectionValue() Result - 匹配数: ${filterResults.value.length} (最多显示50条)',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade300,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        ...filterResults.value
-                                            .take(50)
-                                            .map((result) {
-                                          final type = result['type']
-                                              as FilterResultType;
-                                          final value =
-                                              result['value'] as String;
-                                          final isError =
-                                              type == FilterResultType.error;
-                                          final isHtml =
-                                              type == FilterResultType.html;
-
-                                          return Container(
-                                            margin: const EdgeInsets.only(
-                                                bottom: 8),
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: isError
-                                                  ? Colors.red.shade900
-                                                  : isHtml
-                                                      ? Colors.green.shade900
-                                                      : Colors.blue.shade900,
-                                              border: Border.all(
-                                                color: isError
-                                                    ? Colors.red.shade700
-                                                    : isHtml
-                                                        ? Colors.green.shade700
-                                                        : Colors.blue.shade700,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: SelectableText(
-                                              value,
-                                              style: TextStyle(
-                                                fontFamily: 'monospace',
-                                                fontSize: 14,
-                                                color: isError
-                                                    ? Colors.red.shade200
-                                                    : isHtml
-                                                        ? Colors.greenAccent
-                                                        : Colors
-                                                            .lightBlueAccent,
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                      ],
-                                    ),
-                                  ),
-                                // 3. Validation feedback section (third/last)
-                                if (validationResult.value != null &&
-                                    (!validationResult.value!.isValid ||
-                                        (validationResult.value!.hasWarnings &&
-                                            validationResult.value!.info ==
-                                                null) ||
-                                        validationResult.value!.info != null))
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: !validationResult.value!.isValid
-                                          ? Colors.red.shade900
-                                              .withValues(alpha: 0.3)
-                                          : validationResult.value!.hasWarnings
-                                              ? Colors.orange.shade900
-                                                  .withValues(alpha: 0.3)
-                                              : Colors.green.shade900
-                                                  .withValues(alpha: 0.3),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              !validationResult.value!.isValid
-                                                  ? Icons.error
-                                                  : validationResult
-                                                          .value!.hasWarnings
-                                                      ? Icons.warning
-                                                      : Icons.info_outline,
-                                              size: 14,
-                                              color: !validationResult
-                                                      .value!.isValid
-                                                  ? Colors.red.shade300
-                                                  : validationResult
-                                                          .value!.hasWarnings
-                                                      ? Colors.orange.shade300
-                                                      : Colors.green.shade300,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              !validationResult.value!.isValid
-                                                  ? 'Query Validation Errors'
-                                                  : validationResult
-                                                          .value!.hasWarnings
-                                                      ? 'Query Warnings'
-                                                      : 'Query Structure',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                                color: !validationResult
-                                                        .value!.isValid
-                                                    ? Colors.red.shade300
-                                                    : validationResult
-                                                            .value!.hasWarnings
-                                                        ? Colors.orange.shade300
-                                                        : Colors.green.shade300,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        SelectableText(
-                                          validationResult.value!.toString(),
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.white,
-                                            fontFamily: 'monospace',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                // Empty state message
-                                if (valueResult.value == null &&
-                                    filterResults.value.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Center(
-                                      child: Text(
-                                        validationResult.value != null &&
-                                                !validationResult.value!.isValid
-                                            ? 'Fix validation errors above to see results'
-                                            : 'Enter a QueryString to filter data',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade400,
-                                          fontSize: 14,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                        : JsonTreeView(
+                            json: pageData!.jsonData,
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
+              right: _FilterResultsView(
+                valueResult: valueResult.value,
+                filterResults: filterResults.value,
+                validationResult: validationResult.value,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DataReaderHeader extends StatelessWidget {
+  const _DataReaderHeader({
+    required this.title,
+    required this.viewMode,
+    this.onToggleExpand,
+  });
+
+  final String title;
+  final ValueNotifier<DataViewMode> viewMode;
+  final VoidCallback? onToggleExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.shade600,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(6),
+          topRight: Radius.circular(6),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 16),
+          SegmentedButton<DataViewMode>(
+            segments: const [
+              ButtonSegment(
+                value: DataViewMode.html,
+                label: Text('HTML', style: TextStyle(fontSize: 12)),
+              ),
+              ButtonSegment(
+                value: DataViewMode.json,
+                label: Text('JSON', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+            selected: {viewMode.value},
+            onSelectionChanged: (Set<DataViewMode> newSelection) {
+              viewMode.value = newSelection.first;
+            },
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                return Colors.blue.shade500;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.blue.shade700;
+                }
+                return Colors.white;
+              }),
+              side: WidgetStateProperty.all(BorderSide.none),
+            ),
+          ),
+          const Spacer(),
+          if (onToggleExpand != null)
+            IconButton(
+              icon: const Icon(Icons.close, size: 20, color: Colors.white),
+              onPressed: onToggleExpand,
+              tooltip: 'Close Data Reader',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QueryInput extends StatelessWidget {
+  const _QueryInput({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade800,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade700, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Text(
+            'Query:',
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: 'e.g., div.class@text, script@text?transform=json',
+                hintStyle: TextStyle(
+                  fontSize: 15,
+                  fontFamily: "monospace",
+                  fontFamilyFallback: const [
+                    'Menlo',
+                    'Monaco',
+                    'Courier New',
+                    'Courier',
+                    'monospace'
+                  ],
+                  color: Colors.grey.shade500,
+                ),
+                border: const OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey.shade700,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                isDense: true,
+              ),
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontFamilyFallback: const [
+                  'Menlo',
+                  'Monaco',
+                  'Courier New',
+                  'Courier',
+                  'monospace'
+                ],
+                fontSize: 15,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterResultsView extends StatelessWidget {
+  const _FilterResultsView({
+    required this.valueResult,
+    required this.filterResults,
+    required this.validationResult,
+  });
+
+  final String? valueResult;
+  final List<Map<String, dynamic>> filterResults;
+  final ValidationResult? validationResult;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey.shade900,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Results Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            color: Colors.grey.shade800,
+            child: Text(
+              'Results',
+              style: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. getValue result section
+                  if (valueResult != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade900.withValues(alpha: 0.2),
+                        border: Border.all(
+                          color: Colors.blue.shade800,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.text_fields,
+                                size: 14,
+                                color: Colors.blue.shade300,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Single Value',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.blue.shade300,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            valueResult!,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Colors.white,
+                              fontFamily: 'monospace',
+                              fontFamilyFallback: const [
+                                'Menlo',
+                                'Monaco',
+                                'Courier New',
+                                'Courier',
+                                'monospace'
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // 2. Collection results
+                  if (filterResults.isNotEmpty) ...[
+                    Text(
+                      'Matches: ${filterResults.length} (showing top 50)',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...filterResults.take(50).map((result) {
+                      final type = result['type'] as FilterResultType;
+                      final value = result['value'] as String;
+                      final isError = type == FilterResultType.error;
+                      final isHtml = type == FilterResultType.html;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isError
+                              ? Colors.red.shade900.withValues(alpha: 0.3)
+                              : isHtml
+                                  ? Colors.green.shade900.withValues(alpha: 0.3)
+                                  : Colors.grey.shade800,
+                          border: Border.all(
+                            color: isError
+                                ? Colors.red.shade700
+                                : isHtml
+                                    ? Colors.green.shade700
+                                    : Colors.grey.shade700,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: SelectableText(
+                          value,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontFamilyFallback: const [
+                              'Menlo',
+                              'Monaco',
+                              'Courier New',
+                              'Courier',
+                              'monospace'
+                            ],
+                            fontSize: 14,
+                            color: isError
+                                ? Colors.red.shade200
+                                : isHtml
+                                    ? Colors.greenAccent
+                                    : Colors.lightBlueAccent,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+
+                  // 3. Validation feedback
+                  if (validationResult != null &&
+                      (!validationResult!.isValid ||
+                          validationResult!.hasWarnings ||
+                          validationResult!.info != null))
+                    Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: !validationResult!.isValid
+                            ? Colors.red.shade900.withValues(alpha: 0.2)
+                            : Colors.orange.shade900.withValues(alpha: 0.2),
+                        border: Border.all(
+                          color: !validationResult!.isValid
+                              ? Colors.red.shade800
+                              : Colors.orange.shade800,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            !validationResult!.isValid
+                                ? 'Validation Errors'
+                                : 'Debug Info',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: !validationResult!.isValid
+                                  ? Colors.red.shade300
+                                  : Colors.orange.shade300,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            validationResult!.toString(),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white70,
+                              fontFamily: 'monospace',
+                              fontFamilyFallback: const [
+                                'Menlo',
+                                'Monaco',
+                                'Courier New',
+                                'Courier',
+                                'monospace'
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Empty state
+                  if (valueResult == null && filterResults.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 32),
+                      child: Center(
+                        child: Text(
+                          'Enter a query to see results',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResizableSplitView extends HookWidget {
+  const _ResizableSplitView({
+    required this.left,
+    required this.right,
+    this.initialRatio = 0.5,
+  });
+
+  final Widget left;
+  final Widget right;
+  final double initialRatio;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = useState(initialRatio);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final leftWidth = width * ratio.value;
+
+        return Row(
+          children: [
+            SizedBox(
+              width: leftWidth,
+              child: left,
+            ),
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragUpdate: (details) {
+                final newRatio = (leftWidth + details.delta.dx) / width;
+                ratio.value = newRatio.clamp(0.2, 0.8);
+              },
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeColumn,
+                child: Container(
+                  width: 8,
+                  color: Colors.black,
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 2,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade600,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: right,
+            ),
+          ],
+        );
+      },
     );
   }
 }
