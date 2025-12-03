@@ -25,7 +25,7 @@ abstract class JavaScriptExecutor {
 class FlutterJsExecutor implements JavaScriptExecutor {
   JavascriptRuntime? _runtime;
   int _consecutiveErrors = 0;
-  static const int _maxConsecutiveErrors = 10;
+  static const int _maxConsecutiveErrors = 100;
 
   /// Maximum script size in bytes (default: 1MB)
   final int maxScriptSize;
@@ -37,7 +37,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   final bool truncateLargeScripts;
 
   FlutterJsExecutor({
-    this.maxScriptSize = 1024 * 1024, // 1MB
+    this.maxScriptSize = 10 * 1024 * 1024, // 1MB
     this.maxResultSize = 10 * 1024 * 1024, // 10MB
     this.truncateLargeScripts = false,
   });
@@ -387,10 +387,10 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       if (result.isError) {
         _consecutiveErrors++;
         // Only log first few errors to avoid spam
-        if (_consecutiveErrors <= 3) {
-          _log.warning(
-              'JavaScript variable extraction error: ${result.stringResult}');
-        }
+        //if (_consecutiveErrors <= 3) {
+        _log.warning(
+            'JavaScript variable extraction error: ${result.stringResult}');
+        //}
         return null;
       }
 

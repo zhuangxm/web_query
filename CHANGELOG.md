@@ -1,3 +1,11 @@
+## 0.7.2
+
+### Js Executor Improvements
+
+- Increased max consecutive errors to 100
+- improve js runtime mock environment setup, adding jwplay, jquery etc..
+- to decrease error count
+
 ## 0.7.1
 
 ### UI Improvements
