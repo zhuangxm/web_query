@@ -117,10 +117,29 @@ class FlutterJsExecutor implements JavaScriptExecutor {
         getElementsByTagName: function(tag) {return null;},
         querySelector: function(selector) { return null; },
         querySelectorAll: function(selector) { return []; },
-        createElement: function(tag) { return {}; },
-        body: {},
-        head: {},
+        createElement: function(tag) { 
+          return {
+            setAttribute: function() {},
+            getAttribute: function() { return null; },
+            appendChild: function() {},
+            removeChild: function() {},
+            parentNode: null,
+            textContent: '',
+            src: '',
+            async: false,
+            onclick: null
+          }; 
+        },
+        body: {
+          appendChild: function() {},
+          removeChild: function() {}
+        },
+        head: {
+          appendChild: function() {},
+          removeChild: function() {}
+        },
         title: '',
+        scripts: [], // Add scripts array to prevent errors
         location: {
           href: '',
           protocol: 'https:',
@@ -188,6 +207,62 @@ class FlutterJsExecutor implements JavaScriptExecutor {
       // Create atob/btoa for base64 encoding/decoding
       var atob = function(str) { return str; };
       var btoa = function(str) { return str; };
+      
+      // Create jQuery/\$ mock (minimal implementation)
+      var \$ = function(selector) {
+        return {
+          fadeIn: function() { return this; },
+          fadeOut: function() { return this; },
+          show: function() { return this; },
+          hide: function() { return this; },
+          addClass: function() { return this; },
+          removeClass: function() { return this; },
+          toggleClass: function() { return this; },
+          attr: function() { return this; },
+          css: function() { return this; },
+          on: function() { return this; },
+          off: function() { return this; },
+          click: function() { return this; },
+          mousedown: function() { return this; },
+          html: function() { return this; },
+          text: function() { return this; },
+          val: function() { return this; },
+          append: function() { return this; },
+          remove: function() { return this; },
+          detach: function() { return this; },
+          insertAfter: function() { return this; },
+          hasClass: function() { return false; },
+          length: 0
+        };
+      };
+      \$.cookie = function(name, value, options) { return null; };
+      \$.get = function(url, callback) { return null; };
+      \$.post = function(url, data, callback, dataType) { return null; };
+      \$.ajax = function(options) { return null; };
+      \$.ajaxSetup = function(options) {};
+      var jQuery = \$;
+      
+      // Create jwplayer mock
+      var jwplayer = function(id) {
+        return {
+          setup: function() { return this; },
+          on: function() { return this; },
+          play: function() { return this; },
+          pause: function() { return this; },
+          stop: function() { return this; },
+          seek: function() { return this; },
+          load: function() { return this; },
+          playAd: function() { return this; },
+          addButton: function() { return this; },
+          getPosition: function() { return 0; },
+          getPlaylistItem: function() { return {}; },
+          getConfig: function() { return {}; },
+          getAudioTracks: function() { return []; },
+          setCurrentAudioTrack: function() {},
+          once: function() { return this; }
+        };
+      };
+      jwplayer.key = '';
     ''';
 
     try {
@@ -254,6 +329,7 @@ class FlutterJsExecutor implements JavaScriptExecutor {
   @override
   dynamic extractVariablesSync(String script, List<String>? variableNames) {
     var processedScript = script;
+    //_log.warning('Extracting variables from script: $script');
     try {
       // Stop if too many consecutive errors
       if (_consecutiveErrors >= _maxConsecutiveErrors) {
