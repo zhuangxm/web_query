@@ -71,7 +71,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.7.2
+  web_query: ^0.8.0
 ```
 
 Then run:
@@ -228,6 +228,39 @@ Queries can target HTML, JSON, or URL data:
 'json:title|meta/title'              // Try title, fallback to meta/title
 ```
 
+#### Deep Search (New in 0.8.0)
+
+Use the `..` operator to recursively search for keys anywhere in the JSON structure:
+
+```dart
+// Find all occurrences of a key
+'json:..id'                          // Find all 'id' keys at any depth
+'json:..title'                       // Find all 'title' keys anywhere
+
+// Deep search within a specific path
+'json:wrapper/..target'              // Find 'target' only inside 'wrapper'
+'json:users/..email'                 // Find all emails within users
+
+// Deep search with wildcards
+'json:..*_id'                        // Find all keys ending with '_id'
+'json:..user_*'                      // Find all keys starting with 'user_'
+
+// Example with nested data
+const data = {
+  'id': 1,
+  'items': [
+    {'id': 2, 'name': 'item2'},
+    {'id': 3, 'nested': {'id': 4}}
+  ],
+  'other': {'id': 5}
+};
+
+'json:..id'                          // Returns: [1, 2, 3, 4, 5]
+'json:items/..id'                    // Returns: [2, 3, 4]
+```
+
+**Note**: Deep search automatically flattens list values when multiple matches are found.
+
 ### Attribute Accessors
 
 Attribute accessors extract data from HTML elements:
@@ -346,8 +379,19 @@ Transforms modify the extracted data:
 '@text?transform=upper'                    // UPPERCASE
 '@text?transform=lower'                    // lowercase
 
+// Base64 encoding/decoding (New in 0.8.0)
+'@text?transform=base64'                   // Encode to Base64
+'@text?transform=base64decode'             // Decode from Base64
+
+// String manipulation (New in 0.8.0)
+'@text?transform=reverse'                  // Reverse string characters
+
+// Hashing (New in 0.8.0)
+'@text?transform=md5'                      // Generate MD5 hash
+
 // Chained transforms
 '@text?transform=upper;lower'              // Apply multiple
+'@text?transform=upper;base64'             // Uppercase then encode
 ```
 
 #### Simplified Regexp Syntax
@@ -410,9 +454,29 @@ Use `?regexp=` as a shorthand for `?transform=regexp:`:
 '@text?transform=regexp:/Price: \$(\d+\.\d{2})/$1/'
 // "Price: $19.99" → "19.99"
 
+// Base64 encoding (New in 0.8.0)
+'json:apiKey?transform=base64'
+// "secret123" → "c2VjcmV0MTIz"
+
+// Base64 decoding (New in 0.8.0)
+'json:encoded?transform=base64decode'
+// "SGVsbG8gV29ybGQ=" → "Hello World"
+
+// String reversal (New in 0.8.0)
+'json:text?transform=reverse'
+// "Hello" → "olleH"
+
+// MD5 hashing (New in 0.8.0)
+'json:password?transform=md5'
+// "test" → "098f6bcd4621d373cade4e832627b4f6"
+
 // Multiple transforms
 '@text?transform=regexp:/\s+/ /;upper;regexp:/HELLO/HI/'
 // "hello  world" → "HI WORLD"
+
+// Chain new transforms
+'json:text?transform=upper;base64'
+// "hello" → "HELLO" → "SEVMTE8="
 ```
 
 #### JSON Transform

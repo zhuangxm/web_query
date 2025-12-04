@@ -1,3 +1,68 @@
+## 0.8.0
+
+### Added
+- **JSON Deep Search**: New `..` operator for recursive JSON key searching
+  - `json:..keyName` - Find all occurrences of a key anywhere in the JSON structure
+  - `json:path/..keyName` - Deep search within a specific path
+  - `json:..*pattern` - Deep search with wildcard patterns (e.g., `..*_id` finds all keys ending in `_id`)
+  - Automatically flattens list values when multiple matches are found
+- **New Text Transforms**: Added 4 new text transformation functions:
+  - `base64` - Encode text to Base64
+  - `base64decode` - Decode Base64 to text  
+  - `reverse` - Reverse string characters
+  - `md5` - Generate MD5 hash (32-character lowercase hex)
+- **Comprehensive Documentation**: Added extensive module-level documentation to all transform modules
+- **Transform Pipeline Order Enforcement**: Fixed critical bug where transform execution order depended on map iteration order
+- **Migration Guide**: Added detailed migration documentation for JsExecutorRegistry
+- **Usage Examples**: Added comprehensive examples for all transform types
+
+### Changed
+- **Transform Pipeline Architecture**: Refactored to enforce correct execution order regardless of parameter order in query string
+- **Documentation Structure**: Reorganized and enhanced all transform module documentation with usage examples
+- **Query Validation**: Fixed path formatting in query info extraction (removed leading slashes)
+- **Error Messages**: Improved query validation error formatting
+
+### Fixed
+- **Critical Pipeline Bug**: Transform execution order now guaranteed to be: transform → update → filter → index → save
+- **Dead Code Removal**: Removed unused `discard` transform from pipeline (actual discard behavior handled at query level)
+- **Test Failures**: Fixed 3 failing tests in query info extraction
+- **Path Formatting**: Query info now shows paths without leading slashes for consistency
+
+### Technical Details
+- Added `crypto: ^3.0.3` dependency for MD5 hashing
+- Enhanced `JsExecutorRegistry` with comprehensive documentation and migration examples
+- Improved `TransformContext` and `DiscardMarker` documentation
+- Added 37 new tests for extended text transforms
+- Added pipeline order verification tests
+- Added 4 tests for JSON deep search functionality
+- All 434 tests passing
+
+### Backward Compatibility
+- ✅ 100% backward compatible - all existing code continues to work
+- ✅ All existing APIs unchanged
+- ✅ Deprecated functions still work with migration warnings
+- ✅ Transform behavior identical except for guaranteed execution order
+
+### Migration Notes
+- **Recommended**: Use `JsExecutorRegistry.register()` instead of deprecated `setJsExecutorInstance()`
+- **No Breaking Changes**: Existing code works without modification
+- **Enhanced Reliability**: Transform pipeline now guarantees correct execution order
+
+### Examples
+
+```dart
+// JSON Deep Search
+'json:..id'                    // Find all 'id' keys anywhere
+'json:wrapper/..target'        // Find 'target' only inside 'wrapper'
+'json:..*_id'                  // Find all keys ending with '_id'
+
+// Text Transforms
+'json:message?transform=base64'     // Encode to Base64
+'json:encoded?transform=base64decode' // Decode from Base64
+'json:text?transform=reverse'       // Reverse string
+'json:password?transform=md5'       // Generate MD5 hash
+```
+
 ## 0.7.2
 
 ### Js Executor Improvements
