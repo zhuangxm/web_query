@@ -12,7 +12,8 @@
 /// 3. `filter` - Include/exclude filtering
 /// 4. `index` - Array indexing
 /// 5. `save` - Variable storage
-/// 6. `discard` - Result omission marking
+///
+/// Note: Result omission (discard) is handled at the query level, not in the transform pipeline.
 ///
 /// ### Text Transforms ([text_transforms.dart])
 /// Text manipulation, encoding, and hashing:

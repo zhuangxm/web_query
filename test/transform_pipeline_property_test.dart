@@ -47,19 +47,18 @@ void main() {
         expect(result2, equals('banana'),
             reason: 'Filter should be applied before index');
 
-        // Test case 3: Save before discard
-        // Save a value, then discard it
+        // Test case 3: Save value
+        // Save a value to variables
         final value3 = 'test_value';
         final transforms3 = {
           'save': ['myVar'],
-          'discard': [''],
         };
         final result3 =
             applyAllTransforms(node, value3, transforms3, variables);
         expect(variables['myVar'], equals('test_value'),
-            reason: 'Save should store unwrapped value');
-        expect(result3, isA<DiscardMarker>(),
-            reason: 'Discard should wrap the value');
+            reason: 'Save should store the value');
+        expect(result3, equals('test_value'),
+            reason: 'Save should not modify the result');
 
         // Test case 4: Transform, filter, index in sequence
         final value4 = ['hello', 'world', 'test', 'data'];
@@ -80,14 +79,13 @@ void main() {
           'filter': ['ITEM'],
           'index': ['1'],
           'save': ['allVar'],
-          'discard': [''],
         };
         final result5 =
             applyAllTransforms(node, value5, transforms5, variables);
         expect(variables['allVar'], equals('ITEM2'),
             reason: 'Save should capture value after transform/filter/index');
-        expect(result5, isA<DiscardMarker>(),
-            reason: 'Discard should be applied last');
+        expect(result5, equals('ITEM2'),
+            reason: 'Result should be the final transformed value');
       }
     });
 

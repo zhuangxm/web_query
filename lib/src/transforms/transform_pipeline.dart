@@ -6,12 +6,14 @@
 /// ## Pipeline Order
 ///
 /// Transforms are applied in the following sequence:
-/// 1. **transform** - Text and data transformations (upper, lower, json, jseval, regexp)
+/// 1. **transform** - Text and data transformations (upper, lower, base64, reverse, md5, json, jseval, regexp)
 /// 2. **update** - JSON object updates and merging
 /// 3. **filter** - Include/exclude pattern filtering
 /// 4. **index** - Array element selection
-/// 5. **save** - Variable storage (saves unwrapped values)
-/// 6. **discard** - Result omission marking (wraps in DiscardMarker)
+/// 5. **save** - Variable storage
+///
+/// **Note**: The `discard` behavior (when `?save=` is used without `&keep`) is handled
+/// at a higher level in `query.dart`, not in this transform pipeline.
 ///
 /// ## Key Components
 ///
@@ -23,7 +25,7 @@
 ///
 /// ### DiscardMarker
 /// Wrapper class indicating a value should be omitted from final results.
-/// Used when `?save=varName` is specified without `&keep` parameter.
+/// Created in `query.dart` when `?save=varName` is used without `&keep` parameter.
 ///
 /// ## Usage Examples
 ///
@@ -37,16 +39,15 @@
 /// // Returns: 'HELLO WORLD'
 /// ```
 ///
-/// ### Save and Discard
+/// ### Save Variable
 /// ```dart
 /// final variables = <String, dynamic>{};
 /// final transforms = {
 ///   'save': ['myVar'],
-///   'discard': ['true'],
 /// };
 /// final result = applyAllTransforms(node, 'value', transforms, variables);
 /// // variables['myVar'] == 'value'
-/// // result == DiscardMarker('value')
+/// // result == 'value' (unchanged)
 /// ```
 ///
 /// ### Multiple Transforms
@@ -139,10 +140,9 @@ class TransformContext {
 ///
 /// ## Pipeline Behavior
 ///
-/// The discard transform is applied AFTER save, ensuring that:
-/// - Variables receive the unwrapped value
-/// - The final result is wrapped in DiscardMarker
-/// - QueryResult processing can filter out discarded values
+/// The save operation stores values without modifying the result.
+/// The actual discard behavior (wrapping in DiscardMarker) happens at a higher
+/// level in `query.dart` when `?save=` is used without `&keep`.
 class DiscardMarker {
   final dynamic value;
   DiscardMarker(this.value);
@@ -165,17 +165,16 @@ class DiscardMarker {
 ///
 /// ## Transform Order
 ///
-/// 1. **transform** - Text/data transformations (upper, lower, json, jseval, regexp)
+/// 1. **transform** - Text/data transformations (upper, lower, base64, reverse, md5, json, jseval, regexp)
 /// 2. **update** - JSON object updates
 /// 3. **filter** - Include/exclude filtering
 /// 4. **index** - Array indexing
-/// 5. **save** - Variable storage (before discard wrapping)
-/// 6. **discard** - Result omission marking
+/// 5. **save** - Variable storage
 ///
 /// ## Returns
 ///
-/// The transformed value, potentially wrapped in [DiscardMarker] if discard
-/// transform is present. Returns null if input is null or transforms produce null.
+/// The transformed value. Returns null if input is null or transforms produce null.
+/// Note: [DiscardMarker] wrapping is handled at a higher level in `query.dart`.
 ///
 /// ## Examples
 ///
@@ -197,16 +196,15 @@ class DiscardMarker {
 /// // Returns: 'apple'
 /// ```
 ///
-/// ### Save and Discard
+/// ### Save Variable
 /// ```dart
 /// final variables = <String, dynamic>{};
 /// final transforms = {
 ///   'save': ['fruit'],
-///   'discard': ['true'],
 /// };
 /// final result = applyAllTransforms(node, 'apple', transforms, variables);
 /// // variables['fruit'] == 'apple'
-/// // result == DiscardMarker('apple')
+/// // result == 'apple' (unchanged)
 /// ```
 dynamic applyAllTransforms(PageNode node, dynamic value,
     Map<String, List<String>> transforms, Map<String, dynamic> variables) {
@@ -214,34 +212,53 @@ dynamic applyAllTransforms(PageNode node, dynamic value,
 
   final context = TransformContext(node, variables);
 
-  return transforms.entries.fold(value, (result, entry) {
-    switch (entry.key) {
+  // Define the correct order of transform execution
+  const transformOrder = [
+    'transform',
+    'update',
+    'filter',
+    'index',
+    'save',
+  ];
+
+  // Apply transforms in the defined order, not map iteration order
+  var result = value;
+  for (final transformType in transformOrder) {
+    if (!transforms.containsKey(transformType)) continue;
+
+    final transformValues = transforms[transformType]!;
+
+    switch (transformType) {
       case 'transform':
-        return entry.value.fold(result,
+        result = transformValues.fold(result,
             (v, transform) => _applyTransformValues(context, v, transform));
+        break;
       case 'update':
-        return entry.value.fold(result, (v, update) => applyUpdate(v, update));
+        result =
+            transformValues.fold(result, (v, update) => applyUpdate(v, update));
+        break;
       case 'filter':
-        return entry.value.fold(result, (v, filter) => applyFilter(v, filter));
+        result =
+            transformValues.fold(result, (v, filter) => applyFilter(v, filter));
+        break;
       case 'index':
-        return entry.value
-            .fold(result, (v, indexStr) => applyIndex(v, indexStr));
+        result = transformValues.fold(
+            result, (v, indexStr) => applyIndex(v, indexStr));
+        break;
       case 'save':
-        // Save BEFORE discard so we save the unwrapped value
-        entry.value.fold(result, (v, varName) {
+        // Save the value to variables without modifying the result
+        transformValues.fold(result, (v, varName) {
           if (v != null) {
             variables[varName] = v;
           }
           return v;
         });
-        return result;
-      case 'discard':
-        // Mark value for discard by wrapping in a special marker
-        return entry.value.isEmpty ? result : DiscardMarker(result);
-      default:
-        return result;
+        // Don't modify result, just save to variables
+        break;
     }
-  });
+  }
+
+  return result;
 }
 
 /// Apply transform to values, handling both single values and lists
