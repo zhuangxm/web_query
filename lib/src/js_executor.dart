@@ -660,17 +660,3 @@ class FlutterJsExecutor implements JavaScriptExecutor {
     return jsonEncode(script);
   }
 }
-
-/// Singleton instance for global access
-class JsExecutorRegistry {
-  static JavaScriptExecutor? instance;
-
-  /// Check if an executor is configured
-  static bool get isConfigured => instance != null;
-
-  /// Get or create default executor
-  static JavaScriptExecutor getOrCreateDefault() {
-    instance ??= FlutterJsExecutor();
-    return instance!;
-  }
-}

@@ -326,7 +326,7 @@ class QueryInfo {
     buffer.writeln('Query: ${queryString.query}');
     buffer.writeln(subDivider);
 
-    buffer.writeln('STRUCTURE:');
+    buffer.writeln('Query Structure:');
     buffer.writeln('  • Total parts: $totalParts');
 
     if (operators.isNotEmpty) {
@@ -562,9 +562,15 @@ class QueryValidator {
     // Convert QueryPart objects to QueryPartInfo objects
     final partInfos = <QueryPartInfo>[];
     for (var part in queryString.queries) {
+      // Remove leading slash from path for consistency with test expectations
+      var path = part.path;
+      if (path.startsWith('/')) {
+        path = path.substring(1);
+      }
+
       partInfos.add(QueryPartInfo(
         scheme: part.scheme,
-        path: part.path,
+        path: path,
         parameters: part.parameters,
         transforms: part.transforms,
         isPipe: part.isPipe,

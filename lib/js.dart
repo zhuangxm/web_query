@@ -63,20 +63,18 @@
 library web_query_js;
 
 import 'src/js_executor.dart';
-import 'src/transforms.dart' as transforms;
+import 'src/transforms/data_transforms.dart' show JsExecutorRegistry;
 
 export 'src/js_executor.dart';
 
 /// Initialize JavaScript execution support
 void initializeJsSupport() {
-  // Set up the executor instance for transforms
-  if (JsExecutorRegistry.isConfigured) {
-    transforms.setJsExecutorInstance(JsExecutorRegistry.instance);
-  }
+  // JsExecutorRegistry is now directly used by transforms
+  // No need for additional initialization
 }
 
 /// Configure JavaScript executor and initialize support
 void configureJsExecutor(JavaScriptExecutor executor) {
-  JsExecutorRegistry.instance = executor;
+  JsExecutorRegistry.register(executor);
   initializeJsSupport();
 }

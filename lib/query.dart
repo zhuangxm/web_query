@@ -6,7 +6,6 @@ import 'package:web_query/src/query_part.dart';
 import 'package:web_query/src/transforms.dart';
 
 import 'src/html_query.dart';
-import 'src/js_executor.dart';
 import 'src/json_query.dart';
 import 'src/page_data.dart';
 import 'src/query_result.dart';
