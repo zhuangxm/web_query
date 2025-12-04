@@ -151,6 +151,9 @@ class QueryString extends DataPicker {
   final List<QueryPart> _queries;
   final String? query;
 
+  /// Public getter to access the parsed query parts
+  List<QueryPart> get queries => _queries;
+
   QueryString(this.query)
       : _queries = (query ?? "")
             .splitKeep(RegExp(r'(\|\||\+\+|>>>|>>(?!=))'))
@@ -535,6 +538,17 @@ class QueryString extends DataPicker {
 
   @override
   String toString() {
-    return _queries.toString();
+    if (_queries.isEmpty) return 'QueryString(empty)';
+
+    final buffer = StringBuffer();
+    buffer.writeln('QueryString:');
+    for (var i = 0; i < _queries.length; i++) {
+      buffer.writeln('  [Part ${i + 1}]');
+      final partLines = _queries[i].toString().split('\n');
+      for (var line in partLines) {
+        buffer.writeln('    $line');
+      }
+    }
+    return buffer.toString().trim();
   }
 }

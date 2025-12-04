@@ -209,41 +209,42 @@ class QueryPartInfo {
   @override
   String toString() {
     final buffer = StringBuffer();
-    buffer.write('$scheme:$path');
+    buffer.writeln('Scheme: $scheme');
+    buffer.writeln('Path: $path');
 
     if (parameters.isNotEmpty) {
-      buffer.write('\n      Parameters: ');
-      final paramDetails = <String>[];
+      buffer.writeln('Parameters:');
       parameters.forEach((key, values) {
         if (values.isEmpty || values.first.isEmpty) {
-          paramDetails.add(key);
+          buffer.writeln('  $key');
         } else {
-          paramDetails.add('$key=${values.join(", ")}');
+          buffer.writeln('  $key: ${values.join(", ")}');
         }
       });
-      buffer.write(paramDetails.join(', '));
     }
 
     if (transforms.isNotEmpty) {
-      buffer.write('\n      Transforms:');
+      buffer.writeln('Transforms:');
       transforms.forEach((key, values) {
         for (var value in values) {
-          buffer.write('\n        • $key');
+          buffer.write('  • $key');
           if (value.isNotEmpty) {
             // Parse and show details for specific transform types
             if (key == 'transform') {
-              buffer.write(': ${_formatTransformDetail(value)}');
+              buffer.writeln(': ${_formatTransformDetail(value)}');
             } else if (key == 'save') {
-              buffer.write(': save to variable "\$$value"');
+              buffer.writeln(': save to variable "\$$value"');
             } else if (key == 'filter') {
-              buffer.write(': filter by "$value"');
+              buffer.writeln(': filter by "$value"');
             } else if (key == 'index') {
-              buffer.write(': get index $value');
+              buffer.writeln(': get index $value');
             } else if (key == 'keep') {
-              buffer.write(': keep result in output');
+              buffer.writeln(': keep result in output');
             } else {
-              buffer.write(': $value');
+              buffer.writeln(': $value');
             }
+          } else {
+            buffer.writeln();
           }
         }
       });
@@ -253,10 +254,10 @@ class QueryPartInfo {
     if (isPipe) flags.add('pipe');
     if (isRequired) flags.add('required');
     if (flags.isNotEmpty) {
-      buffer.write('\n      Flags: ${flags.join(", ")}');
+      buffer.writeln('Flags: ${flags.join(", ")}');
     }
 
-    return buffer.toString();
+    return buffer.toString().trim();
   }
 
   /// Format transform details for better readability
@@ -320,36 +321,41 @@ class QueryInfo {
   @override
   String toString() {
     final buffer = StringBuffer();
-    buffer.writeln('Query Structure:');
-    buffer.writeln('  Total parts: $totalParts');
+    const subDivider = ' ';
+
+    buffer.writeln('Query: ${queryString.query}');
+    buffer.writeln(subDivider);
+
+    buffer.writeln('STRUCTURE:');
+    buffer.writeln('  • Total parts: $totalParts');
 
     if (operators.isNotEmpty) {
-      buffer.writeln('  Operators:');
+      buffer.writeln('  • Operators:');
       for (var i = 0; i < operators.length; i++) {
         final op = operators[i];
         final opDesc = _getOperatorDescription(op);
-        buffer.writeln('    ${i + 1}. $op - $opDesc');
+        buffer.writeln('    ${i + 1}. "$op" : $opDesc');
       }
     }
 
     if (variables.isNotEmpty) {
-      buffer.writeln('  Variables: ${variables.map((v) => "\$$v").join(", ")}');
+      buffer
+          .writeln('  • Variables: ${variables.map((v) => "\$$v").join(", ")}');
     }
 
-    buffer.writeln('  Query Parts:');
+    buffer.writeln(subDivider);
+    buffer.writeln('PARTS DETAILS:');
+
     for (var i = 0; i < parts.length; i++) {
+      buffer.writeln('  [Part ${i + 1}]');
       final partLines = parts[i].toString().split('\n');
-      buffer.writeln('    Part ${i + 1}: ${partLines[0]}');
-      for (var j = 1; j < partLines.length; j++) {
-        buffer.writeln('    ${partLines[j]}');
+      for (var line in partLines) {
+        buffer.writeln('    $line');
       }
       if (i < parts.length - 1) {
-        buffer.writeln();
+        buffer.writeln('');
       }
     }
-
-    buffer.write(queryString.toString());
-    buffer.writeln();
     return buffer.toString();
   }
 
@@ -525,42 +531,66 @@ class QueryValidator {
     return parts;
   }
 
-  /// Extracts query information from parsed query parts
+  /// Extracts query information from parsed QueryString
   static QueryInfo _extractQueryInfo(String query) {
-    // Extract operators from the query
+    final queryString = QueryString(query);
+
+    // Extract operators from the query string
     final operators = _extractOperators(query);
 
-    // Extract variables from the query
-    final variables = _extractVariables(query);
+    // Extract variables from the query parts
+    final variables = <String>{};
+    for (var part in queryString.queries) {
+      // Extract variables from path
+      _extractVariablesFromString(part.path, variables);
 
-    // Split query into parts
-    final queryParts = _splitQueryParts(query);
+      // Extract variables from parameters
+      part.parameters.forEach((key, values) {
+        for (var value in values) {
+          _extractVariablesFromString(value, variables);
+        }
+      });
 
-    // Parse each query part to extract detailed information
+      // Extract variables from transforms
+      part.transforms.forEach((key, values) {
+        for (var value in values) {
+          _extractVariablesFromString(value, variables);
+        }
+      });
+    }
+
+    // Convert QueryPart objects to QueryPartInfo objects
     final partInfos = <QueryPartInfo>[];
-    var isRequired = true; // First part is always required
-    var isPipe = false;
-
-    for (var i = 0; i < queryParts.length; i++) {
-      final part = queryParts[i];
-      final partInfo = _parseQueryPartInfo(part, isRequired, isPipe);
-      partInfos.add(partInfo);
-
-      // Determine if next part is required or pipe based on operator
-      if (i < operators.length) {
-        final nextOp = operators[i];
-        isRequired = (nextOp == '++' || nextOp == '>>' || nextOp == '>>>');
-        isPipe = (nextOp == '>>' || nextOp == '>>>');
-      }
+    for (var part in queryString.queries) {
+      partInfos.add(QueryPartInfo(
+        scheme: part.scheme,
+        path: part.path,
+        parameters: part.parameters,
+        transforms: part.transforms,
+        isPipe: part.isPipe,
+        isRequired: part.required,
+      ));
     }
 
     return QueryInfo(
       parts: partInfos,
       operators: operators,
-      variables: variables,
-      totalParts: queryParts.length,
-      queryString: QueryString(query),
+      variables: variables.toList()..sort(),
+      totalParts: queryString.queries.length,
+      queryString: queryString,
     );
+  }
+
+  /// Helper to extract variables from a string
+  static void _extractVariablesFromString(String str, Set<String> variables) {
+    final regex = RegExp(r'\$\{([^}]+)\}');
+    for (var match in regex.allMatches(str)) {
+      final varName = match.group(1)!;
+      // Only add simple variable names, not expressions
+      if (!varName.contains(RegExp(r'[+\-*/\s]'))) {
+        variables.add(varName);
+      }
+    }
   }
 
   /// Extracts operators from the query string
@@ -582,97 +612,6 @@ class QueryValidator {
     }
 
     return operators;
-  }
-
-  /// Parses a single query part to extract information
-  static QueryPartInfo _parseQueryPartInfo(
-      String part, bool isRequired, bool isPipe) {
-    // Extract scheme
-    var scheme = 'html'; // default
-    var path = part;
-
-    final schemeMatch = RegExp(r'^([a-z]+):').firstMatch(part);
-    if (schemeMatch != null) {
-      scheme = schemeMatch.group(1)!;
-      path = part.substring(scheme.length + 1);
-    }
-
-    // For template scheme, the entire content is the path
-    if (scheme == 'template') {
-      return QueryPartInfo(
-        scheme: scheme,
-        path: path,
-        parameters: {},
-        transforms: {},
-        isPipe: isPipe,
-        isRequired: isRequired,
-      );
-    }
-
-    // Extract parameters and transforms
-    final parameters = <String, List<String>>{};
-    final transforms = <String, List<String>>{};
-
-    // Find the parameter section (starts with ?)
-    final paramIndex = path.indexOf('?');
-    if (paramIndex != -1) {
-      final pathPart = path.substring(0, paramIndex);
-      final paramPart = path.substring(paramIndex + 1);
-      path = pathPart;
-
-      // Parse parameters
-      final paramPairs = paramPart.split('&');
-      for (var pair in paramPairs) {
-        if (pair.isEmpty) continue;
-
-        final eqIndex = pair.indexOf('=');
-        if (eqIndex != -1) {
-          final key = pair.substring(0, eqIndex);
-          final value = pair.substring(eqIndex + 1);
-
-          // Categorize as parameter or transform
-          const transformKeys = {
-            'transform',
-            'filter',
-            'update',
-            'regexp',
-            'save',
-            'keep',
-            'index'
-          };
-          if (transformKeys.contains(key)) {
-            if (transforms.containsKey(key)) {
-              transforms[key]!.add(value);
-            } else {
-              transforms[key] = [value];
-            }
-          } else {
-            if (parameters.containsKey(key)) {
-              parameters[key]!.add(value);
-            } else {
-              parameters[key] = [value];
-            }
-          }
-        } else {
-          // Parameter without value (like &keep)
-          const transformKeys = {'keep', 'required'};
-          if (transformKeys.contains(pair)) {
-            transforms[pair] = [''];
-          } else {
-            parameters[pair] = [''];
-          }
-        }
-      }
-    }
-
-    return QueryPartInfo(
-      scheme: scheme,
-      path: path,
-      parameters: parameters,
-      transforms: transforms,
-      isPipe: isPipe,
-      isRequired: isRequired,
-    );
   }
 
   /// Validates scheme syntax, adds errors to list
@@ -1078,35 +1017,6 @@ class QueryValidator {
         ));
       }
     }
-  }
-
-  /// Extracts all variables used in query
-  static List<String> _extractVariables(String query) {
-    final variables = <String>{};
-
-    // Match ${variable} patterns
-    final variablePattern = RegExp(r'\$\{([^}]+)\}');
-    final matches = variablePattern.allMatches(query);
-
-    for (var match in matches) {
-      final varContent = match.group(1)!;
-      // Extract variable names from expressions
-      // For simple variables like ${varName}, just add the name
-      // For expressions like ${var1 + var2}, extract all identifiers
-
-      // Simple approach: extract all word characters that could be variable names
-      final identifiers =
-          RegExp(r'[a-zA-Z_][a-zA-Z0-9_]*').allMatches(varContent);
-      for (var identifier in identifiers) {
-        final varName = identifier.group(0)!;
-        // Filter out common function names or keywords that aren't variables
-        if (!['true', 'false', 'null'].contains(varName)) {
-          variables.add(varName);
-        }
-      }
-    }
-
-    return variables.toList()..sort();
   }
 
   /// Suggests corrections for common typos

@@ -308,6 +308,33 @@ class QueryPart {
 
   @override
   String toString() {
-    return "QueryPart(scheme: $scheme, path: $path, parameters: $parameters, transforms: $transforms, required: $required, isPipe: $isPipe)";
+    final buffer = StringBuffer();
+    buffer.writeln('QueryPart:');
+    buffer.writeln('  Scheme: $scheme');
+    buffer.writeln('  Path: $path');
+
+    if (parameters.isNotEmpty) {
+      buffer.writeln('  Parameters:');
+      parameters.forEach((key, values) {
+        buffer.writeln('    $key: ${values.join(", ")}');
+      });
+    }
+
+    if (transforms.isNotEmpty) {
+      buffer.writeln('  Transforms:');
+      transforms.forEach((key, values) {
+        buffer.writeln('    $key: ${values.join(", ")}');
+      });
+    }
+
+    final flags = <String>[];
+    if (required) flags.add('required');
+    if (isPipe) flags.add('pipe');
+
+    if (flags.isNotEmpty) {
+      buffer.writeln('  Flags: ${flags.join(", ")}');
+    }
+
+    return buffer.toString().trim();
   }
 }
