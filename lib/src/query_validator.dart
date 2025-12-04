@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:web_query/query.dart';
+
 /// Validation rules and constants for query string validation
 class ValidationRules {
   static const validSchemes = ['html', 'json', 'url', 'template'];
@@ -295,12 +297,14 @@ class QueryInfo {
   final List<String> operators;
   final List<String> variables;
   final int totalParts;
+  final QueryString queryString;
 
   QueryInfo({
     required this.parts,
     required this.operators,
     required this.variables,
     required this.totalParts,
+    required this.queryString,
   });
 
   /// Converts query info to a map for JSON serialization
@@ -343,6 +347,9 @@ class QueryInfo {
         buffer.writeln();
       }
     }
+
+    buffer.write(queryString.toString());
+    buffer.writeln();
     return buffer.toString();
   }
 
@@ -552,6 +559,7 @@ class QueryValidator {
       operators: operators,
       variables: variables,
       totalParts: queryParts.length,
+      queryString: QueryString(query),
     );
   }
 

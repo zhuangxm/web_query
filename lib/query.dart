@@ -532,4 +532,9 @@ class QueryString extends DataPicker {
       return PageNode(node.pageData, jsonData: item);
     }
   }
+
+  @override
+  String toString() {
+    return _queries.toString();
+  }
 }

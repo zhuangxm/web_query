@@ -15,7 +15,11 @@ QueryResult walkJsonPath(dynamic data, Iterable<String> pathParts) {
 
 QueryResult resolveJsonMultiPath(
     dynamic data, String path, Iterable<String> rest) {
-  final paths = path.splitKeep(RegExp(r'(\||,)')).map((p) => p.trim()).toList();
+  // Expand wildcards first
+  final expandedPath = _expandWildcards(data, path);
+
+  final paths =
+      expandedPath.splitKeep(RegExp(r'(\||,)')).map((p) => p.trim()).toList();
   var result = QueryResult([]);
   var isRequired = true;
   for (var p in paths) {
@@ -42,6 +46,56 @@ QueryResult resolveJsonMultiPath(
   return result;
 }
 
+/// Expands wildcards in a path to comma-separated actual keys
+/// e.g., "list*" becomes "list1,list2" if those keys exist
+String _expandWildcards(dynamic data, String path) {
+  if (data is! Map) return path;
+
+  // Split by operators but keep them
+  final parts =
+      path.splitKeep(RegExp(r'(\||,|&)')).map((p) => p.trim()).toList();
+  final expanded = <String>[];
+
+  for (var part in parts) {
+    // Keep operators as-is
+    if (part == '|' || part == '&' || part == ',') {
+      expanded.add(part);
+      continue;
+    }
+
+    // Check if this part contains wildcards
+    if (part.contains('*') || part.contains('?')) {
+      final regexPattern = part
+          .replaceAll('*', '.*')
+          .replaceAll(r"\?", "?")
+          .replaceAll(r'?', '.')
+          .replaceAll(r"\$", r"$");
+      final regex = RegExp('^$regexPattern\$');
+
+      final matchedKeys = <String>[];
+      for (var key in data.keys) {
+        if (regex.hasMatch(key.toString())) {
+          matchedKeys.add(key.toString());
+        }
+      }
+
+      if (matchedKeys.isNotEmpty) {
+        // Sort for consistent ordering
+        matchedKeys.sort();
+        expanded.add(matchedKeys.join(','));
+      } else {
+        // No matches, keep original pattern
+        expanded.add(part);
+      }
+    } else {
+      // Not a wildcard, keep as-is
+      expanded.add(part);
+    }
+  }
+
+  return expanded.join('');
+}
+
 dynamic resolveJsonPath(dynamic data, String path) {
   if (path == '*') return data;
   if (data is List) {
@@ -64,24 +118,6 @@ dynamic resolveJsonPath(dynamic data, String path) {
   } else if (data is Map) {
     if (path == '@keys') {
       return data.keys.toList();
-    }
-
-    // Check for wildcard pattern
-    if (path.contains('*') || path.contains('?')) {
-      final regexPattern = path
-          .replaceAll('*', '.*')
-          .replaceAll('?', '.')
-          .replaceAll(r'$', r'\$');
-      final regex = RegExp('^$regexPattern\$');
-
-      final matches = <String, dynamic>{};
-      for (var key in data.keys) {
-        if (regex.hasMatch(key.toString())) {
-          matches[key.toString()] = data[key];
-        }
-      }
-
-      return matches.isEmpty ? null : matches;
     }
 
     return data[path];

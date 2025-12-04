@@ -15,6 +15,9 @@ class QueryPart {
   static const String paramRequired = 'required';
   static const String paramIndex = 'index';
 
+  static const String reservedPattern =
+      "(?:$paramFilter|$paramUpdate|$paramTransform|$paramRegexp|$paramSave|$paramKeep|$paramIndex)";
+
   final String scheme;
   final String path;
   final Map<String, List<String>> parameters;
@@ -26,15 +29,23 @@ class QueryPart {
       this.scheme, this.path, this.parameters, this.transforms, this.required,
       {this.isPipe = false});
 
+  static replaceSpecialCharacter(String part) {
+    return part
+        .replaceAll('#', '%23')
+        .replaceAll("?", "%3F")
+        .replaceAll(r"\", "%5C");
+  }
+
   static String _encodeSelectorPart(String part) {
-    // Encode # in selectors but preserve in query params
-    if (part.contains('?')) {
-      final index = part.indexOf('?');
+    // Encode specialCharacter in selectors but preserve in query params
+    final queryPattern = RegExp(r'(?<!\\)\?');
+    if (part.contains(queryPattern)) {
+      final index = part.indexOf(queryPattern);
       final firstPart = part.substring(0, index);
       final secondPart = part.substring(index + 1);
-      return '${firstPart.replaceAll('#', '%23')}?$secondPart';
+      return '${replaceSpecialCharacter(firstPart)}?$secondPart';
     }
-    return part.replaceAll('#', '%23');
+    return replaceSpecialCharacter(part);
   }
 
   static List<String> _splitTransforms(String value) {
@@ -76,8 +87,7 @@ class QueryPart {
     queryString = _encodeSelectorPart(queryString);
 
     // Negative lookahead pattern to prevent matching reserved parameter names
-    const notLookAheadKeyWords =
-        '(?!&(?:$paramFilter|$paramUpdate|$paramTransform|$paramRegexp|$paramSave|$paramKeep)(?:=|&|\$))';
+    const notLookAheadKeyWords = '(?!&$reservedPattern(?:=|&|\$))';
     const notLookAt = '(?:$notLookAheadKeyWords.)';
 
     // Helper to encode a parameter value

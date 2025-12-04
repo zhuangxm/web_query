@@ -7,7 +7,8 @@ void main() {
 
   setUpAll(() {
     // Configure JavaScript executor
-    configureJsExecutor(FlutterJsExecutor());
+    configureJsExecutor(FlutterJsExecutor(
+        maxScriptSize: 1 * 1024 * 1024, maxResultSize: 1 * 1024 * 1024));
   });
 
   group('JavaScript Evaluation', () {

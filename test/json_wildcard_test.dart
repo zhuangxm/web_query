@@ -26,17 +26,18 @@ void main() {
       final pageData = PageData('https://example.com', html);
 
       // Test: jseval >> json:flashvars_*
+      // This should expand to flashvars_343205161,flashvars_999888777 and combine results
       final node = pageData.getRootElement();
       final result =
           QueryString('script/@text?transform=jseval >> json:flashvars_*')
               .execute(node);
       print('Result: $result');
 
-      expect(result, isA<Map>());
-      final map = result as Map;
-      expect(map.containsKey('flashvars_343205161'), true);
-      expect(map.containsKey('flashvars_999888777'), true);
-      expect(map.containsKey('config_data'), false);
+      expect(result, isA<List>());
+      final list = result as List;
+      expect(list.length, 2);
+      expect(list[0]['video_id'], '343205161');
+      expect(list[1]['video_id'], '999888777');
     });
 
     test('json path wildcard with suffix', () {
@@ -54,16 +55,17 @@ void main() {
       final node2 = pageData.getRootElement();
 
       // Test: jseval >> json:*_id
+      // This should expand to session_id,user_id (alphabetically) and combine results
       final result = QueryString('script/@text?transform=jseval >> json:*_id')
           .execute(node2);
       print('Result: $result');
 
-      expect(result, isA<Map>());
-      final map = result as Map;
-      expect(map.containsKey('user_id'), true);
-      expect(map.containsKey('session_id'), true);
-      expect(map['user_id'], 123);
-      expect(map['session_id'], 456);
+      expect(result, isA<List>());
+      final list = result as List;
+      expect(list.length, 2);
+      // Keys are sorted alphabetically: session_id, user_id
+      expect(list[0], 456);
+      expect(list[1], 123);
     });
 
     test('direct json wildcard on map data', () {
@@ -80,11 +82,12 @@ void main() {
       final result = QueryString('json:flashvars_*').execute(node);
       print('Direct result: $result');
 
-      expect(result, isA<Map>());
-      final map = result as Map;
-      expect(map.length, 2);
-      expect(map.containsKey('flashvars_123'), true);
-      expect(map.containsKey('flashvars_456'), true);
+      expect(result, isA<List>());
+      final list = result as List;
+      expect(list.length, 2);
+      // Keys are sorted alphabetically: flashvars_123, flashvars_456
+      expect(list[0]['id'], '123');
+      expect(list[1]['id'], '456');
     });
   });
 }

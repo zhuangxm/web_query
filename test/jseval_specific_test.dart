@@ -8,7 +8,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    configureJsExecutor(FlutterJsExecutor());
+    configureJsExecutor(FlutterJsExecutor(
+        maxScriptSize: 1 * 1024 * 1024, maxResultSize: 1 * 1024 * 1024));
   });
 
   group('jseval specific variable extraction', () {
