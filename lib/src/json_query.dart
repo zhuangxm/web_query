@@ -98,6 +98,13 @@ String _expandWildcards(dynamic data, String path) {
 
 dynamic resolveJsonPath(dynamic data, String path) {
   if (path == '*') return data;
+
+  // Check for deep search
+  if (path.startsWith('..')) {
+    final keyPattern = path.substring(2);
+    return _deepSearch(data, keyPattern);
+  }
+
   if (data is List) {
     if (path.contains('-')) {
       final parts = path.split('-');
@@ -123,4 +130,42 @@ dynamic resolveJsonPath(dynamic data, String path) {
     return data[path];
   }
   return null;
+}
+
+List<dynamic> _deepSearch(dynamic data, String keyPattern) {
+  final results = [];
+
+  // Prepare regex for key matching (handling wildcards)
+  final regexPattern = keyPattern
+      .replaceAll('*', '.*')
+      .replaceAll(r"\?", "?")
+      .replaceAll(r'?', '.')
+      .replaceAll(r"\$", r"$");
+  final regex = RegExp('^$regexPattern\$');
+
+  void search(dynamic current) {
+    if (current is Map) {
+      for (var key in current.keys) {
+        // Check if key matches
+        if (regex.hasMatch(key.toString())) {
+          final value = current[key];
+          if (value is List) {
+            results.addAll(value);
+          } else {
+            results.add(value);
+          }
+        }
+
+        // Recursively search values
+        search(current[key]);
+      }
+    } else if (current is List) {
+      for (var item in current) {
+        search(item);
+      }
+    }
+  }
+
+  search(data);
+  return results;
 }
