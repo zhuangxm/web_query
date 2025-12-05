@@ -129,4 +129,75 @@ void main() {
       expect(result, isNull);
     });
   });
+
+  group('JSON Variable Extraction Edge Cases', () {
+    test('extracts variable with space before semicolon', () {
+      const html = '''
+      <html>
+        <script>
+        var data = {"name": "Alice"} ;
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      final result =
+          QueryString('script/@text?transform=json:data').execute(node);
+
+      expect(result, isA<Map>());
+      expect(result['name'], 'Alice');
+    });
+
+    test('extracts variable at end of text without semicolon', () {
+      const html = '''
+      <html>
+        <script>
+        var data = {"name": "Bob"}
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      // Note: HTML parser might strip whitespace/newlines or keep them.
+      // transform=json trims the input text manually if needed?
+      // applyJsonTransform calls value.toString().trim().
+      // So surrounding whitespace like indentation from strings inside HTML
+      // might be an issue if we are not careful, but typically trimming handles the ends.
+      // But inside the script, if there is indentation:
+      // "        var data = ..."
+      // The regex allows whitespace before var? No, "data" is the var name.
+      // RegExp('$escapedName\\s*=...') starts with the var name.
+      // It searches in the text.
+
+      final result =
+          QueryString('script/@text?transform=json:data').execute(node);
+
+      expect(result, isA<Map>());
+      expect(result['name'], 'Bob');
+    });
+
+    test('extracts array with spaces and newlines', () {
+      const html = '''
+      <html>
+        <script>
+        var list = [1, 2, 3]
+          ;
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      final result =
+          QueryString('script/@text?transform=json:list').execute(node);
+
+      expect(result, isA<List>());
+      expect(result, [1, 2, 3]);
+    });
+  });
 }

@@ -239,15 +239,26 @@ class HomePage extends HookWidget {
     <script>
         // Sample configuration data
         var siteConfig = {
-            "name": "TechBlog",
+            "name": "SiteConfig1",
             "version": "2.0",
             "features": ["articles", "comments", "search"],
             "analytics": {
                 "enabled": true,
                 "provider": "custom"
             }
-        };
+        } ;
     </script>
+    <script>
+        // Sample configuration data with comma
+        var siteConfig2 = {
+            "name": "SiteConfig2",
+            "version": "2.0",
+            "features": ["articles", "comments", "search"],
+            "analytics": {
+                "enabled": true,
+                "provider": "custom"
+            }
+        }</script>
 </body>
 </html>''';
 

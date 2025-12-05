@@ -161,20 +161,25 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
     final escapedName = RegExp.escape(varName).replaceAll(r'\*', '.*');
 
     // Match patterns like: var config = {...}; or window.__DATA__ = {...};
+    // Note: JavaScript variables may or may not end with semicolon
     final patterns = [
-      // Objects
-      RegExp('$escapedName\\s*=\\s*({[\\s\\S]*?});', multiLine: true),
-      // Arrays
-      RegExp('$escapedName\\s*=\\s*(\\[[\\s\\S]*?\\]);', multiLine: true),
+      // Objects - match with or without semicolon
+      RegExp('$escapedName\\s*=\\s*({[\\s\\S]*?})\\s*(?:;|\$)',
+          multiLine: false),
+      // Arrays - match with or without semicolon
+      RegExp('$escapedName\\s*=\\s*(\\[[\\s\\S]*?\\])\\s*(?:;|\$)',
+          multiLine: false),
       // Numbers (including decimals, negative, scientific notation)
-      RegExp('$escapedName\\s*=\\s*(-?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?);',
-          multiLine: true),
+      RegExp(
+          '$escapedName\\s*=\\s*(-?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?)\\s*(?:;|\$)',
+          multiLine: false),
       // Strings (single or double quotes)
-      RegExp('$escapedName\\s*=\\s*(["\'][\\s\\S]*?["\']);', multiLine: true),
+      RegExp('$escapedName\\s*=\\s*(["\'][\\s\\S]*?["\'])\\s*(?:;|\$)',
+          multiLine: false),
       // Booleans
-      RegExp('$escapedName\\s*=\\s*(true|false);', multiLine: true),
+      RegExp('$escapedName\\s*=\\s*(true|false)\\s*(?:;|\$)', multiLine: false),
       // Null
-      RegExp('$escapedName\\s*=\\s*(null);', multiLine: true),
+      RegExp('$escapedName\\s*=\\s*(null)\\s*(?:;|\$)', multiLine: false),
     ];
 
     bool found = false;
@@ -195,9 +200,10 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
 
   // Try to parse as JSON
   try {
+    _log.warning("parse text: $text");
     return json.jsonDecode(text);
   } catch (e) {
-    _log.warning('Failed to parse JSON: $e');
+    _log.warning('Failed to parse JSON text $text error: $e');
     return null;
   }
 }
