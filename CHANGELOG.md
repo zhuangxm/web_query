@@ -1,3 +1,6 @@
+## 0.8.2
+- **Fix**:  correct handle javascript variable definition omit ; at the end of text. and could be space before ;
+
 ## 0.8.1
 
 - **New Text Transforms**: Added 4 new text transformation functions:

@@ -71,7 +71,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.8.1
+  web_query: ^0.8.2
 ```
 
 Then run:
