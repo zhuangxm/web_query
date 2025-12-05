@@ -192,6 +192,16 @@ class HtmlElementWidget extends HookWidget {
                           text: tagName,
                           style: const TextStyle(color: Colors.lightBlueAccent),
                         ),
+                        // Show children count always (when there are children)
+                        if (childCount > 0)
+                          TextSpan(
+                            text: ' ($childCount)',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontStyle: FontStyle.italic,
+                              fontSize: 10,
+                            ),
+                          ),
                         // Attributes
                         ...attributeSpans,
                         TextSpan(
@@ -299,7 +309,8 @@ class HtmlElementWidget extends HookWidget {
                               // Show grandchildren count if any
                               if (grandChildCount > 0)
                                 TextSpan(
-                                  text: ' $grandChildCount',
+                                  text:
+                                      ' ($grandChildCount ${grandChildCount == 1 ? "child" : "children"})',
                                   style: TextStyle(
                                     color: Colors.grey.shade500,
                                     fontStyle: FontStyle.italic,
