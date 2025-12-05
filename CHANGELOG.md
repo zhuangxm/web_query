@@ -1,20 +1,17 @@
-## 0.8.0
+## 0.8.1
 
-### Added
-- **JSON Deep Search**: New `..` operator for recursive JSON key searching
-  - `json:..keyName` - Find all occurrences of a key anywhere in the JSON structure
-  - `json:path/..keyName` - Deep search within a specific path
-  - `json:..*pattern` - Deep search with wildcard patterns (e.g., `..*_id` finds all keys ending in `_id`)
-  - Automatically flattens list values when multiple matches are found
 - **New Text Transforms**: Added 4 new text transformation functions:
   - `base64` - Encode text to Base64
   - `base64decode` - Decode Base64 to text  
   - `reverse` - Reverse string characters
   - `md5` - Generate MD5 hash (32-character lowercase hex)
 - **Comprehensive Documentation**: Added extensive module-level documentation to all transform modules
-- **Transform Pipeline Order Enforcement**: Fixed critical bug where transform execution order depended on map iteration order
 - **Migration Guide**: Added detailed migration documentation for JsExecutorRegistry
 - **Usage Examples**: Added comprehensive examples for all transform types
+- **Example App Enhancement**: Added comprehensive sample JSON data to example app
+  - Realistic blog structure with articles, authors, categories, and configuration
+  - Demonstrates JSON querying capabilities alongside HTML examples
+  - Enables testing of deep search and JSON path features
 
 ### Changed
 - **Transform Pipeline Architecture**: Refactored to enforce correct execution order regardless of parameter order in query string
@@ -23,18 +20,24 @@
 - **Error Messages**: Improved query validation error formatting
 
 ### Fixed
-- **Critical Pipeline Bug**: Transform execution order now guaranteed to be: transform → update → filter → index → save
+- **Critical Transform Pipeline Bug**: Transform execution order now guaranteed to be: transform → update → filter → index → save
+  - Previously, execution order depended on map iteration order, causing unpredictable behavior
+  - Now uses LinkedHashMap with explicit ordering to ensure deterministic execution
+- **UI Enhancement**: DataQueryWidget HTML tree view now always shows children count
+  - Children count visible in both collapsed and expanded states
+  - Proper formatting: "(3 children)" instead of just "3"
+  - Better visual hierarchy and user experience
 - **Dead Code Removal**: Removed unused `discard` transform from pipeline (actual discard behavior handled at query level)
 - **Test Failures**: Fixed 3 failing tests in query info extraction
 - **Path Formatting**: Query info now shows paths without leading slashes for consistency
 
 ### Technical Details
 - Added `crypto: ^3.0.3` dependency for MD5 hashing
-- Enhanced `JsExecutorRegistry` with comprehensive documentation and migration examples
-- Improved `TransformContext` and `DiscardMarker` documentation
-- Added 37 new tests for extended text transforms
-- Added pipeline order verification tests
-- Added 4 tests for JSON deep search functionality
+- Centralized transform validation with `validTextTransforms` constant for easier maintenance
+
+## 0.8.0
+
+*Note: Version 0.8.0 was not published. All features and fixes were included in 0.8.1.*
 - All 434 tests passing
 
 ### Backward Compatibility

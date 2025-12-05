@@ -71,7 +71,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.8.0
+  web_query: ^0.8.1
 ```
 
 Then run:
@@ -379,14 +379,14 @@ Transforms modify the extracted data:
 '@text?transform=upper'                    // UPPERCASE
 '@text?transform=lower'                    // lowercase
 
-// Base64 encoding/decoding (New in 0.8.0)
+// Base64 encoding/decoding (New in 0.8.1)
 '@text?transform=base64'                   // Encode to Base64
 '@text?transform=base64decode'             // Decode from Base64
 
-// String manipulation (New in 0.8.0)
+// String manipulation (New in 0.8.1)
 '@text?transform=reverse'                  // Reverse string characters
 
-// Hashing (New in 0.8.0)
+// Hashing (New in 0.8.1)
 '@text?transform=md5'                      // Generate MD5 hash
 
 // Chained transforms
@@ -454,19 +454,19 @@ Use `?regexp=` as a shorthand for `?transform=regexp:`:
 '@text?transform=regexp:/Price: \$(\d+\.\d{2})/$1/'
 // "Price: $19.99" → "19.99"
 
-// Base64 encoding (New in 0.8.0)
+// Base64 encoding (New in 0.8.1)
 'json:apiKey?transform=base64'
 // "secret123" → "c2VjcmV0MTIz"
 
-// Base64 decoding (New in 0.8.0)
+// Base64 decoding (New in 0.8.1)
 'json:encoded?transform=base64decode'
 // "SGVsbG8gV29ybGQ=" → "Hello World"
 
-// String reversal (New in 0.8.0)
+// String reversal (New in 0.8.1)
 'json:text?transform=reverse'
 // "Hello" → "olleH"
 
-// MD5 hashing (New in 0.8.0)
+// MD5 hashing (New in 0.8.1)
 'json:password?transform=md5'
 // "test" → "098f6bcd4621d373cade4e832627b4f6"
 
