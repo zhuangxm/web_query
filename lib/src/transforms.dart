@@ -152,7 +152,11 @@ export 'transforms/text_transforms.dart'
         md5Hash;
 // Re-export transform pipeline for backward compatibility
 export 'transforms/transform_pipeline.dart'
-    show applyAllTransforms, TransformContext, DiscardMarker;
+    show
+        applyAllTransforms,
+        TransformContext,
+        DiscardMarker,
+        validTextTransforms;
 
 /// Backward compatibility shim for old JS executor API
 ///

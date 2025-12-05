@@ -81,6 +81,27 @@ import 'pattern_transforms.dart';
 import 'selection_transforms.dart';
 import 'text_transforms.dart';
 
+/// Valid text transform names
+///
+/// This list is the single source of truth for all text transforms.
+/// When adding a new text transform:
+/// 1. Implement the function in text_transforms.dart
+/// 2. Add the transform name to this list
+/// 3. Add a case in _applyTextTransformSingle() in text_transforms.dart
+///
+/// The transform will automatically be:
+/// - Available in the transform pipeline
+/// - Validated in query parsing
+/// - Documented in error messages
+const validTextTransforms = [
+  'upper',
+  'lower',
+  'base64',
+  'base64decode',
+  'reverse',
+  'md5',
+];
+
 /// Context object for passing page data and variables through transform pipeline
 ///
 /// Provides access to page context information needed by transforms that
@@ -286,10 +307,13 @@ dynamic _applyTransform(
     return applyJsEvalTransform(value, transform.substring(7));
   }
 
+  // Check if it's a text transform
+  if (validTextTransforms.contains(transform)) {
+    return applyTextTransform(value, transform);
+  }
+
+  // Handle other transforms
   switch (transform) {
-    case 'upper':
-    case 'lower':
-      return applyTextTransform(value, transform);
     case 'json':
       return applyJsonTransform(value, null);
     case 'jseval':

@@ -1,3 +1,5 @@
+import 'transforms.dart' show validTextTransforms;
+
 class QueryPart {
   // Scheme constants for query types
   static const String schemeHtml = 'html';
@@ -295,10 +297,17 @@ class QueryPart {
         throw const FormatException(
             'Invalid jseval transform format: ?transform=jseval:var1,var2');
       }
-    } else if (!['upper', 'lower', 'json', 'jseval'].contains(transform)) {
+    } else if (!validTextTransforms.contains(transform) &&
+        !['json', 'jseval'].contains(transform)) {
       // Unknown transform - might be a typo
+      final allTransforms = [
+        ...validTextTransforms,
+        'json',
+        'jseval',
+        'regexp'
+      ];
       throw FormatException(
-          'Unknown transform: "$transform". Valid transforms: upper, lower, json, jseval, regexp');
+          'Unknown transform: "$transform". Valid transforms: ${allTransforms.join(', ')}');
     }
   }
 
