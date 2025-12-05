@@ -37,8 +37,12 @@
 
 ## 0.8.0
 
-*Note: Version 0.8.0 was not published. All features and fixes were included in 0.8.1.*
-- All 434 tests passing
+### Added
+- **JSON Deep Search**: New `..` operator for recursive JSON key searching
+  - `json:..keyName` - Find all occurrences of a key anywhere in the JSON structure
+  - `json:path/..keyName` - Deep search within a specific path
+  - `json:..*pattern` - Deep search with wildcard patterns (e.g., `..*_id` finds all keys ending in `_id`)
+  - Automatically flattens list values when multiple matches are found
 
 ### Backward Compatibility
 - ✅ 100% backward compatible - all existing code continues to work
