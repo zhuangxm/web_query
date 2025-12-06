@@ -3,17 +3,18 @@ import 'dart:convert';
 import 'package:function_tree/function_tree.dart';
 import 'package:html/dom.dart';
 import 'package:web_query/src/query_part.dart';
+import 'package:web_query/src/resolver/variable.dart';
 import 'package:web_query/src/transforms.dart';
+import 'package:web_query/src/transforms/common.dart';
+import 'package:web_query/src/transforms/javascript.dart';
 
 import 'src/html_query.dart';
 import 'src/json_query.dart';
 import 'src/page_data.dart';
 import 'src/query_result.dart';
-import 'src/query_validator.dart';
 import 'src/url_query.dart';
 
 export 'src/page_data.dart';
-export 'src/query_validator.dart';
 export 'src/transforms.dart' show DiscardMarker;
 
 abstract class DataPicker {
@@ -174,17 +175,15 @@ class QueryString extends DataPicker {
             .$3
             .toList();
 
-  /// Validates the query string syntax and returns detailed results
-  /// This method does not affect query execution
-  ValidationResult validate() {
-    if (query == null || query!.isEmpty) {
-      return ValidationResult(query ?? '', [], []);
-    }
-    return QueryValidator.validate(query!);
-  }
-
   dynamic execute(PageNode node,
       {bool simplify = true, Map<String, dynamic>? initialVariables}) {
+    final pageUrl = node.pageData.url;
+    initialVariables = {
+      ...initialVariables ?? {},
+      "time": DateTime.now().millisecondsSinceEpoch,
+      "pageUrl": pageUrl,
+      "rootUrl": Uri.parse(pageUrl).origin
+    };
     // Check if query contains >>> operator
     if (query?.contains('>>>') ?? false) {
       // Split at >>> and handle specially
@@ -235,7 +234,7 @@ class QueryString extends DataPicker {
     for (var query in _queries) {
       if (query.transforms.containsKey('transform')) {
         final transforms = query.transforms['transform']!;
-        if (transforms.any((t) => t.startsWith('jseval'))) {
+        if (transforms.transformers.any((t) => t is JavascriptTransformer)) {
           return true;
         }
       }
@@ -444,16 +443,13 @@ class QueryString extends DataPicker {
     });
 
     // Resolve variables in transforms
-    final resolvedTransforms = <String, List<String>>{};
-    query.transforms.forEach((key, values) {
-      resolvedTransforms[key] =
-          values.map((v) => _resolveString(v, variables)).toList();
+    final resolver = VariableResolver(variables);
+    query.transforms.forEach((key, value) {
+      value.resolve(resolver);
     });
 
     // Create a new query part with resolved path and parameters
-    final resolvedQuery = QueryPart(query.scheme, resolvedPath,
-        resolvedParameters, resolvedTransforms, query.required,
-        isPipe: query.isPipe);
+    final resolvedQuery = query;
 
     QueryResult result = QueryResult([]);
     if (resolvedPath.isNotEmpty) {
@@ -473,23 +469,25 @@ class QueryString extends DataPicker {
           : QueryResult(node);
     }
 
-    // Extract index transform (it applies to the list, not individual elements)
-    final indexTransform = resolvedTransforms.remove('index');
-
     //_log.fine("execute query result before transform: $result");
-    result = QueryResult(result.data
-        .map((e) => applyAllTransforms(node, e, resolvedTransforms, variables))
-        .where(
-            (e) => e != null && e != 'null' && e.toString().trim().isNotEmpty)
-        .toList());
+    final List<TransformResult> transformResults = result.data
+        .map<TransformResult>((e) =>
+            applyAllTransforms(node, e, resolvedQuery.transforms, variables))
+        .where((e) => e.isValid())
+        .toList();
+
+    variables.addAll(transformResults
+        .fold({}, (prev, next) => {...prev, ...next.changedVariables}));
+    result = QueryResult(transformResults.map((e) => e.result).toList());
 
     // Apply index transform to the result list
-    if (indexTransform != null && indexTransform.isNotEmpty) {
-      final indexStr = indexTransform.first;
-      result = QueryResult(applyIndex(result.data, indexStr));
+    if (resolvedQuery.transforms.containsKey(QueryPart.paramIndex)) {
+      return QueryResult(query.transforms[QueryPart.paramIndex]
+          ?.transform(result.data)
+          .result);
+    } else {
+      return result;
     }
-
-    return result;
   }
 
   QueryResult _executeSingleQueryWithDiscard(QueryPart query, PageNode node,

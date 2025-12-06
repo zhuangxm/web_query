@@ -75,11 +75,11 @@
 /// - Transform-specific errors are logged but don't break the pipeline
 library;
 
+import 'package:web_query/src/query_part.dart';
+import 'package:web_query/src/transforms/common.dart';
+import 'package:web_query/src/transforms/core.dart';
+
 import '../page_data.dart';
-import 'data_transforms.dart';
-import 'pattern_transforms.dart';
-import 'selection_transforms.dart';
-import 'text_transforms.dart';
 
 /// Valid text transform names
 ///
@@ -227,98 +227,30 @@ class DiscardMarker {
 /// // variables['fruit'] == 'apple'
 /// // result == 'apple' (unchanged)
 /// ```
-dynamic applyAllTransforms(PageNode node, dynamic value,
-    Map<String, List<String>> transforms, Map<String, dynamic> variables) {
-  if (value == null) return null;
+TransformResult applyAllTransforms(PageNode node, dynamic value,
+    Map<String, GroupTransformer> transforms, Map<String, dynamic> variables) {
+  if (value == null) return TransformResult(result: null);
 
-  final context = TransformContext(node, variables);
+  //final context = TransformContext(node, variables);
 
   // Define the correct order of transform execution
+  // don't include paramIndex, paramIndex works at the end result;
   const transformOrder = [
-    'transform',
-    'update',
-    'filter',
-    'index',
-    'save',
+    QueryPart.paramTransform,
+    QueryPart.paramUpdate,
+    QueryPart.paramFilter,
+    QueryPart.paramSave,
   ];
 
   // Apply transforms in the defined order, not map iteration order
-  var result = value;
+  var transformResult = TransformResult(result: value);
   for (final transformType in transformOrder) {
     if (!transforms.containsKey(transformType)) continue;
 
     final transformValues = transforms[transformType]!;
 
-    switch (transformType) {
-      case 'transform':
-        result = transformValues.fold(result,
-            (v, transform) => _applyTransformValues(context, v, transform));
-        break;
-      case 'update':
-        result =
-            transformValues.fold(result, (v, update) => applyUpdate(v, update));
-        break;
-      case 'filter':
-        result =
-            transformValues.fold(result, (v, filter) => applyFilter(v, filter));
-        break;
-      case 'index':
-        result = transformValues.fold(
-            result, (v, indexStr) => applyIndex(v, indexStr));
-        break;
-      case 'save':
-        // Save the value to variables without modifying the result
-        transformValues.fold(result, (v, varName) {
-          if (v != null) {
-            variables[varName] = v;
-          }
-          return v;
-        });
-        // Don't modify result, just save to variables
-        break;
-    }
+    transformResult = transformValues.transform(transformResult.result);
   }
 
-  return result;
-}
-
-/// Apply transform to values, handling both single values and lists
-dynamic _applyTransformValues(
-    TransformContext context, dynamic value, String transform) {
-  return (value is List)
-      ? value.map((v) => _applyTransform(context, v, transform)).toList()
-      : _applyTransform(context, value, transform);
-}
-
-/// Apply a single transform to a value
-dynamic _applyTransform(
-    TransformContext context, dynamic value, String transform) {
-  if (value == null) return null;
-
-  if (transform.startsWith('regexp:')) {
-    return applyRegexpTransform(context.node, value, transform.substring(7));
-  }
-
-  if (transform.startsWith('json:')) {
-    return applyJsonTransform(value, transform.substring(5));
-  }
-
-  if (transform.startsWith('jseval:')) {
-    return applyJsEvalTransform(value, transform.substring(7));
-  }
-
-  // Check if it's a text transform
-  if (validTextTransforms.contains(transform)) {
-    return applyTextTransform(value, transform);
-  }
-
-  // Handle other transforms
-  switch (transform) {
-    case 'json':
-      return applyJsonTransform(value, null);
-    case 'jseval':
-      return applyJsEvalTransform(value, null);
-    default:
-      return value;
-  }
+  return transformResult;
 }

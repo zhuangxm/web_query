@@ -36,7 +36,7 @@ class DataQueryWidget extends HookWidget {
     final queryController = useTextEditingController();
     final filterResults = useState<List<Map<String, dynamic>>>([]);
     final valueResult = useState<String?>(null);
-    final validationResult = useState<ValidationResult?>(null);
+    final validationResult = useState<String?>(null);
     final fontSizeScale = useState(1.0);
     final showSingleValue = useState(true);
     final showCollection = useState(true);
@@ -80,7 +80,7 @@ class DataQueryWidget extends HookWidget {
             valueResult.value = value;
 
             // Always validate to show query structure
-            final validation = queryString.validate();
+            final validation = queryString.toString();
             validationResult.value = validation;
 
             // Try to get collection first
@@ -101,14 +101,15 @@ class DataQueryWidget extends HookWidget {
               // Empty result
               filterResults.value = [];
             }
-          } catch (e) {
+          } catch (e, s) {
             // Error occurred - validate query to show helpful feedback
+            _log.severe(e, s);
             try {
               final queryString = QueryString(query);
-              final validation = queryString.validate();
+              final validation = queryString.toString();
               validationResult.value = validation;
             } catch (validationError) {
-              validationResult.value = null;
+              validationResult.value = "Error: $validationError";
             }
 
             filterResults.value = [
@@ -386,7 +387,7 @@ class _FilterResultsView extends StatelessWidget {
 
   final String? valueResult;
   final List<Map<String, dynamic>> filterResults;
-  final ValidationResult? validationResult;
+  final String? validationResult;
   final double fontSizeScale;
   final ValueNotifier<bool> showSingleValue;
   final ValueNotifier<bool> showCollection;
@@ -581,58 +582,46 @@ class _FilterResultsView extends StatelessWidget {
                   ],
 
                   // 3. Validation feedback
-                  if (validationResult != null &&
-                      (!validationResult!.isValid ||
-                          validationResult!.hasWarnings ||
-                          validationResult!.info != null))
-                    Container(
-                      margin: const EdgeInsets.only(top: 12),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: !validationResult!.isValid
-                            ? Colors.red.shade900.withValues(alpha: 0.2)
-                            : Colors.orange.shade900.withValues(alpha: 0.2),
-                        border: Border.all(
-                          color: !validationResult!.isValid
-                              ? Colors.red.shade800
-                              : Colors.orange.shade800,
-                        ),
-                        borderRadius: BorderRadius.circular(4),
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade900.withValues(alpha: 0.2),
+                      border: Border.all(
+                        color: Colors.orange.shade800,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            !validationResult!.isValid
-                                ? 'Validation Errors'
-                                : 'Debug Info',
-                            style: TextStyle(
-                              fontSize: 11 * fontSizeScale,
-                              fontWeight: FontWeight.bold,
-                              color: !validationResult!.isValid
-                                  ? Colors.red.shade300
-                                  : Colors.orange.shade300,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          SelectableText(
-                            validationResult!.toString(),
-                            style: TextStyle(
-                              fontSize: 13 * fontSizeScale,
-                              color: Colors.white70,
-                              fontFamily: 'monospace',
-                              fontFamilyFallback: const [
-                                'Menlo',
-                                'Monaco',
-                                'Courier New',
-                                'Courier',
-                                'monospace'
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      borderRadius: BorderRadius.circular(4),
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Debug Info',
+                          style: TextStyle(
+                            fontSize: 11 * fontSizeScale,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade300,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        SelectableText(
+                          validationResult?.toString() ?? "",
+                          style: TextStyle(
+                            fontSize: 13 * fontSizeScale,
+                            color: Colors.white70,
+                            fontFamily: 'monospace',
+                            fontFamilyFallback: const [
+                              'Menlo',
+                              'Monaco',
+                              'Courier New',
+                              'Courier',
+                              'monospace'
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                   // Empty state
                   if (valueResult == null && filterResults.isEmpty)

@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_query/query.dart';
+import 'package:web_query/src/resolver/function.dart';
+import 'package:web_query/src/transforms/common.dart';
+import 'package:web_query/src/transforms/core.dart';
+import 'package:web_query/src/transforms/selection.dart';
 import 'package:web_query/src/transforms/transform_pipeline.dart';
 
 void main() {
@@ -17,14 +21,19 @@ void main() {
 
       // Put transforms in REVERSE order: save, index, filter, transform
       final transformsReversed = {
-        'save': ['myVar'],
-        'index': ['0'],
-        'filter': ['HELLO'],
-        'transform': ['upper'],
+        'save': GroupTransformer([SaveTransformer('myVar')]),
+        'index': GroupTransformer([IndexTransformer('0')]),
+        'filter': GroupTransformer([FilterTransformer('HELLO')], mapList: true),
+        'transform': GroupTransformer([
+          SimpleFunctionTransformer(
+              functionName: 'upper',
+              functionResolver: FunctionResolver(defaultFunctions))
+        ], mapList: true),
       };
 
       final result1 =
-          applyAllTransforms(node, value1, transformsReversed, variables);
+          applyAllTransforms(node, value1, transformsReversed, variables)
+              .result;
 
       // If pipeline order is enforced:
       // 1. transform: ['hello', 'world', 'test'] -> ['HELLO', 'WORLD', 'TEST']
@@ -62,13 +71,20 @@ void main() {
 
       // Put index before filter (which doesn't make sense)
       final transformsWrongOrder = {
-        'index': ['0'],
-        'filter': ['TEST'],
-        'transform': ['upper'],
+        'index': GroupTransformer([IndexTransformer('0')]),
+        'filter': GroupTransformer([
+          FilterTransformer('TEST'),
+        ], mapList: true),
+        'transform': GroupTransformer([
+          SimpleFunctionTransformer(
+              functionName: 'upper',
+              functionResolver: FunctionResolver(defaultFunctions))
+        ], mapList: true),
       };
 
       final result2 =
-          applyAllTransforms(node, value2, transformsWrongOrder, variables2);
+          applyAllTransforms(node, value2, transformsWrongOrder, variables2)
+              .result;
 
       print('\nTest 2 - Wrong logical order (index before filter):');
       print('  Result: $result2');

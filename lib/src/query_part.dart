@@ -1,4 +1,8 @@
-import 'transforms.dart' show validTextTransforms;
+import 'package:logging/logging.dart';
+import 'package:web_query/src/transforms/core.dart';
+
+// ignore: unused_element
+final _log = Logger("QueryPart");
 
 class QueryPart {
   // Scheme constants for query types
@@ -23,7 +27,7 @@ class QueryPart {
   final String scheme;
   final String path;
   final Map<String, List<String>> parameters;
-  final Map<String, List<String>> transforms;
+  final Map<String, GroupTransformer> transforms;
   final bool required;
   final bool isPipe;
 
@@ -159,37 +163,49 @@ class QueryPart {
   }
 
   /// Moves transform-related parameters from params to transforms map
-  static Map<String, List<String>> _moveParamsToTransforms(
+  static Map<String, GroupTransformer> _moveParamsToTransforms(
       Map<String, List<String>> params) {
-    final transforms = <String, List<String>>{};
+    final transforms = <String, GroupTransformer>{};
 
     // Move transform parameter
     if (params.containsKey(paramTransform)) {
-      transforms[paramTransform] = params.remove(paramTransform)!;
+      transforms[paramTransform] = GroupTransformer(
+          params
+              .remove(paramTransform)!
+              .map((e) => createTransform(e))
+              .toList(),
+          mapList: true);
     }
 
     // Move regexp parameter and convert to transform format
     if (params.containsKey(paramRegexp)) {
-      final regexps =
-          params.remove(paramRegexp)!.map((e) => '$paramRegexp:$e').toList();
+      final regexps = params
+          .remove(paramRegexp)!
+          .map((e) => createTransform('$paramRegexp:$e'))
+          .toList();
 
       if (transforms.containsKey(paramTransform)) {
-        transforms[paramTransform]!.addAll(regexps);
+        transforms[paramTransform]!.addTransforms(regexps);
       } else {
-        transforms[paramTransform] = regexps;
+        transforms[paramTransform] = GroupTransformer(regexps);
       }
     }
 
     // Move other transform-related parameters
-    for (var param in [
-      paramUpdate,
-      paramFilter,
-      paramSave,
-      paramKeep,
-      paramIndex
+    for (var (param, mapList) in [
+      (paramUpdate, true),
+      (paramFilter, true),
+      (paramSave, false),
+      (paramKeep, false),
+      (paramIndex, false)
     ]) {
       if (params.containsKey(param)) {
-        transforms[param] = params.remove(param)!;
+        transforms[param] = GroupTransformer(
+            params
+                .remove(param)!
+                .map((e) => createTransformWithName(param, e))
+                .toList(),
+            mapList: mapList);
       }
     }
 
@@ -232,7 +248,7 @@ class QueryPart {
   }
 
   static void _validateParameters(Map<String, List<String>> params,
-      Map<String, List<String>> transforms, String scheme) {
+      Map<String, GroupTransformer> transforms, String scheme) {
     // Known valid parameter names
     const validParams = {paramRequired};
     const validTransforms = {
@@ -254,60 +270,6 @@ class QueryPart {
               'Unknown query parameter: "$key". Did you mean one of: ${validTransforms.join(', ')}?');
         }
       }
-    }
-
-    // Validate transform values
-    if (transforms.containsKey(paramTransform)) {
-      for (var transform in transforms[paramTransform]!) {
-        _validateTransform(transform);
-      }
-    }
-
-    // Validate save parameter has a value
-    if (transforms.containsKey(paramSave)) {
-      for (var saveVar in transforms[paramSave]!) {
-        if (saveVar.isEmpty) {
-          throw const FormatException(
-              'save parameter requires a variable name: ?save=varName');
-        }
-      }
-    }
-  }
-
-  static void _validateTransform(String transform) {
-    // Check for common transform types
-    if (transform.startsWith('$paramRegexp:')) {
-      final pattern = transform.substring(7);
-      if (pattern.isEmpty) {
-        throw const FormatException(
-            'regexp transform requires a pattern: ?transform=regexp:/pattern/');
-      }
-      // Don't validate regexp format - let it fail at runtime for better error messages
-    } else if (transform.startsWith('json:')) {
-      // json: can have optional variable name, so just check it's not malformed
-      final varName = transform.substring(5);
-      if (varName.contains('?') || varName.contains('&')) {
-        throw const FormatException(
-            'Invalid json transform format: ?transform=json:varName');
-      }
-    } else if (transform.startsWith('jseval:')) {
-      // jseval: can have optional variable names
-      final varNames = transform.substring(7);
-      if (varNames.contains('?') || varNames.contains('&')) {
-        throw const FormatException(
-            'Invalid jseval transform format: ?transform=jseval:var1,var2');
-      }
-    } else if (!validTextTransforms.contains(transform) &&
-        !['json', 'jseval'].contains(transform)) {
-      // Unknown transform - might be a typo
-      final allTransforms = [
-        ...validTextTransforms,
-        'json',
-        'jseval',
-        'regexp'
-      ];
-      throw FormatException(
-          'Unknown transform: "$transform". Valid transforms: ${allTransforms.join(', ')}');
     }
   }
 
@@ -332,7 +294,8 @@ class QueryPart {
     if (transforms.isNotEmpty) {
       buffer.writeln('  Transforms:');
       transforms.forEach((key, values) {
-        buffer.writeln('    $key: ${values.join(", ")}');
+        buffer.writeln(
+            '    $key: mapList: ${values.mapList}, transformers: ${values.transformers.map((e) => e.info()).toList()}');
       });
     }
 

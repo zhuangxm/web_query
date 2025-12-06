@@ -51,7 +51,7 @@ void logInit() {
   if (kReleaseMode) {
     Logger.root.level = Level.INFO;
   } else {
-    Logger.root.level = Level.FINE;
+    Logger.root.level = Level.FINER;
   }
   hierarchicalLoggingEnabled = true;
   Logger.root.onRecord.listen(printLog);

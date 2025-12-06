@@ -148,9 +148,13 @@ final _log = Logger('QueryString.Transforms.Selection');
 /// applyFilter('Apple', 'Ban');  // null
 /// ```
 dynamic applyFilter(dynamic value, String filter) {
-  if (value == null) return null;
-
   final parts = parseFilterPattern(filter);
+
+  return applyFilterByList(value, parts);
+}
+
+dynamic applyFilterByList(dynamic value, List<String> parts) {
+  if (value == null) return null;
   if (parts.isEmpty) return value;
 
   bool check(dynamic v) {

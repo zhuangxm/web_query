@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web_query/src/transforms/text_transforms.dart';
+import 'package:web_query/src/transforms.dart';
+import 'package:web_query/src/transforms/functions.dart';
 
 void main() {
   group('Base64 Encoding', () {

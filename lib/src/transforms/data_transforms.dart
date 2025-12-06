@@ -241,6 +241,17 @@ dynamic applyUpdate(dynamic value, String updates) {
 
   try {
     final updateMap = json.jsonDecode(updates);
+    return applyUpdateJson(value, updateMap);
+  } catch (e) {
+    _log.warning('Failed to apply update: $e');
+    return value;
+  }
+}
+
+dynamic applyUpdateJson(dynamic value, Map updateMap) {
+  if (value is! Map) return value;
+
+  try {
     return {...value, ...updateMap};
   } catch (e) {
     _log.warning('Failed to apply update: $e');
