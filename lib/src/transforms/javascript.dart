@@ -25,8 +25,8 @@ class JavascriptTransformer extends Transformer {
   }
 
   @override
-  TransformResult transform(value) {
-    return TransformResult(result: applyJsEvalTransform(value, _rawValue));
+  ResultWithVariables transform(value) {
+    return ResultWithVariables(result: applyJsEvalTransform(value, _rawValue));
   }
 
   @override

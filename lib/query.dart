@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:web_query/src/query_part.dart';
 import 'package:web_query/src/resolver/variable.dart';
 import 'package:web_query/src/transforms.dart';
+import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/javascript.dart';
 
 import 'src/html_query.dart';
@@ -181,23 +182,32 @@ class QueryString extends DataPicker {
       {bool simplify = true, Map<String, dynamic>? initialVariables}) {
     final queries = (query ?? "").split('>>>');
 
+    // if (queries.length == 1) {
+    //   return _executeQueries(currentNode,
+    //           simplify: simplify, initialVariables: variables)
+    //       .result;
+    // }
+
     PageNode currentNode = node;
+
+    var variables = {...initialVariables ?? {}};
     while (queries.isNotEmpty) {
       final firstQuery = queries.removeAt(0);
 
       if (queries.isEmpty) {
-        return _executeQueries(currentNode,
-            simplify: simplify, initialVariables: initialVariables);
+        return QueryString(firstQuery.trim())._executeQueries(currentNode,
+            simplify: simplify, initialVariables: variables);
       } else {
         final firstExecution = QueryString(firstQuery.trim())
             ._executeQueriesWithVariables(currentNode,
-                simplify: false, initialVariables: initialVariables);
+                simplify: false, initialVariables: variables);
 
         // Convert result to list if it isn't already
         final resultList = (firstExecution.result is Iterable)
             ? firstExecution.result.toList()
             : [firstExecution.result];
 
+        variables.addAll(firstExecution.variables);
         // Convert to JSON array - extract text from PageNodes
         final arrayData = resultList.map((item) {
           if (item is PageNode) {
@@ -254,9 +264,8 @@ class QueryString extends DataPicker {
     }
   }
 
-  ({dynamic result, Map<String, dynamic> variables})
-      _executeQueriesWithVariables(PageNode node,
-          {bool simplify = true, Map<String, dynamic>? initialVariables}) {
+  ResultWithVariables _executeQueriesWithVariables(PageNode node,
+      {bool simplify = true, Map<String, dynamic>? initialVariables}) {
     final variables = <String, dynamic>{...?initialVariables};
     QueryResult result = QueryResult([]);
 
@@ -285,7 +294,10 @@ class QueryString extends DataPicker {
                         : (item is String && query.scheme == 'json')
                             ? _tryParseJson(node, item)
                             : PageNode(node.pageData, jsonData: item);
-            final subResult = _executeSingleQuery(query, itemNode, variables);
+            final subResultWithVariables =
+                _executeSingleQuery(query, itemNode, variables);
+            final subResult = subResultWithVariables.result;
+            variables.addAll(subResultWithVariables.variables);
             pipedData.addAll(subResult.data);
           }
           result_ = QueryResult(pipedData);
@@ -293,7 +305,9 @@ class QueryString extends DataPicker {
         // Replace result with piped result
         result = result_;
       } else {
-        result_ = _executeSingleQuery(query, node, variables);
+        final resultWithVariables = _executeSingleQuery(query, node, variables);
+        result_ = resultWithVariables.result;
+        variables.addAll(resultWithVariables.variables);
         result = result.combine(result_);
       }
     }
@@ -311,7 +325,7 @@ class QueryString extends DataPicker {
                 ? result.data.first
                 : result.data;
 
-    return (result: finalResult, variables: variables);
+    return ResultWithVariables(result: finalResult, variables: variables);
   }
 
   dynamic _executeQueries(PageNode node,
@@ -321,8 +335,9 @@ class QueryString extends DataPicker {
         .result;
   }
 
-  QueryResult _executeSingleQuery(
+  QueryResultWithVariables _executeSingleQuery(
       QueryPart query, PageNode node, Map<String, dynamic> variables) {
+    _log.fine("execute query part: $query, variables: $variables");
     // Resolve variables in path
     final resolver = VariableResolver(variables);
 
@@ -330,7 +345,8 @@ class QueryString extends DataPicker {
 
     //_log.fine("execute query: $query");
     if (query.scheme == 'template') {
-      return QueryResult([query.path]);
+      return QueryResultWithVariables(
+          result: QueryResult([query.path]), variables: {...variables});
     }
 
     if (!['json', 'html', 'url'].contains(query.scheme)) {
@@ -355,11 +371,11 @@ class QueryString extends DataPicker {
     final transformResult =
         applyAllTransforms(node, result.data, query.transforms, variables);
 
-    variables.addAll(transformResult.changedVariables);
+    variables.addAll(transformResult.variables);
     result = QueryResult(transformResult.result);
 
-    _log.finer("execute result $transformResult");
-    return result;
+    _log.finer("execute result $transformResult", variables);
+    return QueryResultWithVariables(result: result, variables: {...variables});
   }
 
   @override

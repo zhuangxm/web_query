@@ -49,14 +49,7 @@ class RegExpTransformer extends Transformer {
   RegExpTransformer(this.rawValue) {
     final parsed = parseRegexpPattern(rawValue);
     if (parsed == null) {
-      _log.warning(
-          'Invalid regexp format. Use: /pattern/ or /pattern/replacement/ or pattern/replacement/s');
-      errorMessage =
-          'Invalid regexp pattern: $rawValue, Use: /pattern/ or /pattern/replacement/ or /pattern/replacement/s';
-      _pattern = "";
-      _replaceMent = "";
-      _replaceMode = true;
-      return;
+      throw const FormatException("regexp transform requires a pattern");
     }
     _pattern = parsed.pattern;
     _replaceMent = parsed.replacement;
@@ -103,10 +96,10 @@ class RegExpTransformer extends Transformer {
   }
 
   @override
-  TransformResult transform(dynamic value) {
+  ResultWithVariables transform(dynamic value) {
     _log.finer("Transforming $value with $this");
-    if (value == null) return TransformResult(result: null);
-    return TransformResult(result: _transformInter(value));
+    if (value == null) return ResultWithVariables(result: null);
+    return ResultWithVariables(result: _transformInter(value));
   }
 
   @override

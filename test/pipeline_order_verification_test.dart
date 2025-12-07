@@ -69,7 +69,7 @@ void main() {
 
       expect(result1.result, equals('HELLO'),
           reason: 'Pipeline order should be enforced');
-      expect(result1.changedVariables['myVar'], equals('HELLO'),
+      expect(result1.variables['myVar'], equals('HELLO'),
           reason: 'Save should happen after all transforms');
 
       // Test 2: Another test with different order

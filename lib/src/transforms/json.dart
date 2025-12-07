@@ -24,9 +24,9 @@ class JsonTransformer extends Transformer {
   }
 
   @override
-  TransformResult transform(value) {
+  ResultWithVariables transform(value) {
     _log.fine("transform $value to json");
-    return TransformResult(result: applyJsonTransform(value, _rawValue));
+    return ResultWithVariables(result: applyJsonTransform(value, _rawValue));
   }
 
   @override

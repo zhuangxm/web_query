@@ -173,15 +173,15 @@ class TransformContext {
 /// // variables['fruit'] == 'apple'
 /// // result == 'apple' (unchanged)
 /// ```
-TransformResult applyAllTransforms(
+ResultWithVariables applyAllTransforms(
     PageNode node,
     dynamic value,
     Map<String, GroupTransformer> transformMaps,
     Map<String, dynamic> variables) {
-  if (value == null) return TransformResult(result: null);
+  if (value == null) return ResultWithVariables(result: null);
 
   // Apply transforms in the defined order, not map iteration order
-  var transformResult = TransformResult(result: value);
+  var transformResult = ResultWithVariables(result: value);
 
   final List<Transformer> transformers = [];
   for (final transformType in transformOrder) {

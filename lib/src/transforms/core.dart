@@ -39,8 +39,8 @@ Map<String, CreateTransFormFunction> defaultFunctions = {
   "upper": (params) => (v) => toUpperCase(v),
   "lower": (params) => (v) => toLowerCase(v),
   "md5": (params) => (v) => md5Hash(v),
-  "base64": (params) => (v) => base64Encode(v.codeUnits),
-  "base64Decode": (params) => (v) => base64Decode(v),
+  "base64": (params) => (v) => base64Encode(v),
+  "base64decode": (params) => (v) => base64Decode(v),
   "reverse": (params) => (v) => reverseString(v),
   "sha1": (params) => (v) => sha1Hash(v),
   "update": (params) => (v) => applyUpdateJson(v, params),
@@ -81,17 +81,17 @@ class GroupTransformer extends Transformer {
   }
 
   @override
-  TransformResult transform(value) {
+  ResultWithVariables transform(value) {
     // _log.fine("group transfer $value");
     // _log.fine("group transfers $_transformers");
     if (value is List && mapList) {
       final results =
           value.map((v) => Transformer.transformMultiple(transformers, v));
-      return TransformResult(
+      return ResultWithVariables(
           result:
               results.where((v) => v.isValid()).map((v) => v.result).toList(),
-          changedVariables: results
-              .map((v) => v.changedVariables)
+          variables: results
+              .map((v) => v.variables)
               .toList()
               .fold({}, (prev, next) => {...prev, ...next}));
     } else {
@@ -131,16 +131,16 @@ class SaveTransformer extends Transformer {
   final String varName;
   SaveTransformer(this.varName) {
     if (varName.isEmpty) {
-      throw Exception(
-        "SaveTransformer: varName cannot be empty",
+      throw const FormatException(
+        "SaveTransformer: save parameter requires a variable name",
       );
     }
   }
 
   @override
-  TransformResult transform(value) {
+  ResultWithVariables transform(value) {
     _log.fine("save $value to $varName");
-    return TransformResult(result: value, changedVariables: {varName: value});
+    return ResultWithVariables(result: value, variables: {varName: value});
   }
 
   @override

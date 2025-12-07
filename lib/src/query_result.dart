@@ -41,8 +41,8 @@ class QueryResult {
 }
 
 class QueryResultWithVariables {
-  final QueryResult queryResult;
+  final QueryResult result;
   final Map<String, dynamic> variables;
 
-  QueryResultWithVariables(this.queryResult, this.variables);
+  QueryResultWithVariables({required this.result, this.variables = const {}});
 }

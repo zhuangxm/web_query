@@ -22,8 +22,8 @@ class FilterTransformer extends Transformer {
   }
 
   @override
-  TransformResult transform(dynamic value) {
-    return TransformResult(result: applyFilterByList(value, _filters));
+  ResultWithVariables transform(dynamic value) {
+    return ResultWithVariables(result: applyFilterByList(value, _filters));
   }
 
   @override
@@ -50,9 +50,9 @@ class IndexTransformer extends Transformer {
   }
 
   @override
-  TransformResult transform(dynamic value) {
+  ResultWithVariables transform(dynamic value) {
     _log.fine("apply index: $_rawValue to $value");
-    return TransformResult(result: applyIndex(value, _rawValue));
+    return ResultWithVariables(result: applyIndex(value, _rawValue));
   }
 
   @override

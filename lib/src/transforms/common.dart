@@ -6,21 +6,21 @@ import 'package:web_query/src/resolver/function.dart';
 
 final _log = Logger("Transformer.common");
 
-class TransformResult {
+class ResultWithVariables {
   dynamic result;
-  Map<String, dynamic> changedVariables = const {};
+  Map<String, dynamic> variables = const {};
 
   bool isValid() =>
       result != null && result != 'null' && result.toString().trim().isNotEmpty;
 
   @override
   String toString() {
-    return 'TransformResult{result: $result, changedVariables: $changedVariables}';
+    return 'TransformResult{result: $result, changedVariables: $variables}';
   }
 
-  TransformResult({
+  ResultWithVariables({
     this.result,
-    this.changedVariables = const {},
+    this.variables = const {},
   });
 }
 
@@ -46,17 +46,16 @@ abstract class Transformer {
 
   Resolver? resolver;
 
-  TransformResult transform(dynamic value);
+  ResultWithVariables transform(dynamic value);
 
-  static TransformResult transformMultiple(
+  static ResultWithVariables transformMultiple(
       List<Transformer> transformers, value) {
-    return transformers.fold(TransformResult(result: value),
+    return transformers.fold(ResultWithVariables(result: value),
         (prevResult, transform) {
       final nv = transform.transform(prevResult.result);
-      return TransformResult(result: nv.result, changedVariables: {
-        ...prevResult.changedVariables,
-        ...nv.changedVariables
-      });
+      return ResultWithVariables(
+          result: nv.result,
+          variables: {...prevResult.variables, ...nv.variables});
     });
   }
 
@@ -84,8 +83,7 @@ class SimpleFunctionTransformer extends Transformer {
       required this.functionResolver,
       this.rawValue = ""}) {
     if (!functionResolver.hasFunction(functionName)) {
-      throw ArgumentError.value(
-          functionName, 'functionName', 'Unknown function name');
+      throw FormatException('Unknown transform: "$functionName"');
     } else if (rawValue.isNotEmpty) {
       try {
         _params = jsonDecode(rawValue);
@@ -123,13 +121,13 @@ class SimpleFunctionTransformer extends Transformer {
   }
 
   @override
-  TransformResult transform(value) {
+  ResultWithVariables transform(value) {
     _log.finer("Transforming $value with $functionName");
     final result = functionResolver.resolve(value, params: {
       ..._params ?? {},
       FunctionResolver.functionNameKey: functionName
     });
-    return TransformResult(result: result, changedVariables: {});
+    return ResultWithVariables(result: result, variables: {});
   }
 
   @override
@@ -141,12 +139,12 @@ class KeepTransformer extends Transformer {
   final String rawString;
   KeepTransformer(this.rawString) : keep = rawString != 'false';
   @override
-  TransformResult transform(value) {
+  ResultWithVariables transform(value) {
     _log.fine("keep $keep, value: $value");
     if (!keep) {
-      return TransformResult(result: null, changedVariables: {});
+      return ResultWithVariables(result: null, variables: {});
     }
-    return TransformResult(result: value, changedVariables: {});
+    return ResultWithVariables(result: value, variables: {});
   }
 
   @override

@@ -136,8 +136,8 @@ void main() {
                 functionName: 'upper',
                 functionResolver: FunctionResolver(defaultFunctions))
           ]), // All become uppercase
-          'filter': GroupTransformer(
-              [FilterTransformer('WORLD')]), // Then filter for WORLD
+          'filter': GroupTransformer([FilterTransformer('WORLD')],
+              mapList: true), // Then filter for WORLD
         };
         final result2 =
             applyAllTransforms(node, value2, transforms2, variables).result;
@@ -148,10 +148,10 @@ void main() {
         // Test case 3: Filter output feeds into index
         final value3 = ['apple', 'apricot', 'banana', 'avocado'];
         final transforms3 = {
-          'filter':
-              GroupTransformer([FilterTransformer('a')]), // Keep items with 'a'
-          'index': GroupTransformer(
-              [IndexTransformer('-1')]), // Get last item from filtered list
+          'filter': GroupTransformer([FilterTransformer('a')],
+              mapList: true), // Keep items with 'a'
+          'index': GroupTransformer([IndexTransformer('-1')],
+              mapList: false), // Get last item from filtered list
         };
         final result3 =
             applyAllTransforms(node, value3, transforms3, variables).result;
@@ -177,8 +177,8 @@ void main() {
                 functionName: 'upper',
                 functionResolver: FunctionResolver(defaultFunctions))
           ]), // ['TEST1', 'TEST2', 'OTHER', 'TEST3']
-          'filter': GroupTransformer(
-              [FilterTransformer('TEST')]), // ['TEST1', 'TEST2', 'TEST3']
+          'filter': GroupTransformer([FilterTransformer('TEST')],
+              mapList: true), // ['TEST1', 'TEST2', 'TEST3']
           'index': GroupTransformer([IndexTransformer('1')]), // 'TEST2'
           'save': GroupTransformer([SaveTransformer('complexVar')]),
         };
