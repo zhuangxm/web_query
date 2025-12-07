@@ -71,7 +71,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.8.6
+  web_query: ^0.8.7
 ```
 
 Then run:
@@ -562,6 +562,7 @@ Pass the output of one query as the input to the next:
 #### Special Selectors
 
 - **`@keys`**: Get keys of a JSON object
+
   ```dart
   'json:users/@keys' // Returns ["alice", "bob"]
   ```

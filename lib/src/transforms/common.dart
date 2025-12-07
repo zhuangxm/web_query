@@ -17,13 +17,16 @@ class ResultWithVariables {
     return 'TransformResult{result: $result, changedVariables: $variables}';
   }
 
-  ResultWithVariables({
-    result,
-    this.variables = const {},
-  }) {
-    this.result =
-        result is Iterable ? result.where((e) => isValid(e)).toList() : result;
+  ResultWithVariables filterOutInvalid() {
+    return ResultWithVariables(
+        result: result is Iterable ? result.where(isValid).toList() : result,
+        variables: variables);
   }
+
+  ResultWithVariables({
+    this.result,
+    this.variables = const {},
+  });
 }
 
 abstract class Transformer {

@@ -53,7 +53,10 @@ class GroupTransformer extends Transformer {
       final results =
           value.map((v) => Transformer.transformMultiple(transformers, v));
       return ResultWithVariables(
-          result: results,
+          result: results
+              .where((v) => v.result != null)
+              .map((v) => v.result)
+              .toList(),
           variables: results
               .map((v) => v.variables)
               .toList()

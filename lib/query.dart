@@ -446,5 +446,6 @@ ResultWithVariables _applyAllTransforms(
 
     transformers.add(transformMaps[transformType]!);
   }
-  return Transformer.transformMultiple(transformers, transformResult.result);
+  return Transformer.transformMultiple(transformers, transformResult.result)
+      .filterOutInvalid();
 }

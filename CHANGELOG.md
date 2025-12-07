@@ -1,4 +1,6 @@
-## 0.8.6
+## 0.8.7
+
+- **Attention**: version 0.8.6 and 0.8.5 should not be used
 
 ### Fixes
 
@@ -548,7 +550,7 @@ The old `Selectors` class and related APIs have been removed. Use `QueryString` 
   - Include filters: `filter=word` matches items containing "word"
   - Exclude filters: `filter=!word` excludes items containing "word"
   - Combined filters: `filter=a !b` includes "a" AND excludes "b"
-  - Escaped characters: Support for `\ ` (space), `\;` (semicolon), `\&` (ampersand)
+  - Escaped characters: Support for `\` (space), `\;` (semicolon), `\&` (ampersand)
 - **Enhanced Parameter Parsing**:
 
   - Smart handling of `&` in `transform`, `filter`, and `update` parameters
