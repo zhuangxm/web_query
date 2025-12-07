@@ -3,6 +3,7 @@ import 'package:web_query/src/resolver/common.dart';
 import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/data_transforms.dart';
 
+// ignore: unused_element
 final _log = Logger("transformer.json");
 
 class JsonTransformer extends Transformer {
