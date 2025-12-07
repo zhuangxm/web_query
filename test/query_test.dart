@@ -153,8 +153,7 @@ void main() {
       expect(QueryString('json://invalid||html://h1/@text').execute(testNode),
           'Title');
       expect(
-          QueryString('json://meta/title||html://h1/@text?required=false')
-              .execute(testNode),
+          QueryString('json://meta/title||html://h1/@text').execute(testNode),
           'JSON Title');
     });
 
@@ -194,9 +193,7 @@ void main() {
       expect(QueryString('json:invalid/path||h1/@text').execute(testNode),
           equals('Title') // Still executes second query
           );
-      expect(
-          QueryString('json:invalid/path?required=true||h1/@text')
-              .execute(testNode),
+      expect(QueryString('json:invalid/path||h1/@text').execute(testNode),
           equals('Title') // Parameter has no effect
           );
     });

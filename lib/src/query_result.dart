@@ -39,3 +39,10 @@ class QueryResult {
   @override
   String toString() => "QueryResult($data)";
 }
+
+class QueryResultWithVariables {
+  final QueryResult queryResult;
+  final Map<String, dynamic> variables;
+
+  QueryResultWithVariables(this.queryResult, this.variables);
+}

@@ -75,32 +75,10 @@
 /// - Transform-specific errors are logged but don't break the pipeline
 library;
 
-import 'package:web_query/src/query_part.dart';
 import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/core.dart';
 
 import '../page_data.dart';
-
-/// Valid text transform names
-///
-/// This list is the single source of truth for all text transforms.
-/// When adding a new text transform:
-/// 1. Implement the function in text_transforms.dart
-/// 2. Add the transform name to this list
-/// 3. Add a case in _applyTextTransformSingle() in text_transforms.dart
-///
-/// The transform will automatically be:
-/// - Available in the transform pipeline
-/// - Validated in query parsing
-/// - Documented in error messages
-const validTextTransforms = [
-  'upper',
-  'lower',
-  'base64',
-  'base64decode',
-  'reverse',
-  'md5',
-];
 
 /// Context object for passing page data and variables through transform pipeline
 ///
@@ -138,38 +116,6 @@ class TransformContext {
       return '';
     }
   }
-}
-
-/// Marker class to indicate a value should be discarded from final results
-///
-/// Used to implement the `?save=varName` behavior without `&keep` parameter.
-/// When a value is wrapped in DiscardMarker, it indicates the value should be:
-/// 1. Saved to the variables map (if save transform is present)
-/// 2. Omitted from the final query results
-///
-/// ## Usage
-///
-/// ```dart
-/// // Wrap a value for discard
-/// final marked = DiscardMarker('value');
-///
-/// // Check if a value is marked for discard
-/// if (result is DiscardMarker) {
-///   print('Value will be discarded: ${result.value}');
-/// }
-/// ```
-///
-/// ## Pipeline Behavior
-///
-/// The save operation stores values without modifying the result.
-/// The actual discard behavior (wrapping in DiscardMarker) happens at a higher
-/// level in `query.dart` when `?save=` is used without `&keep`.
-class DiscardMarker {
-  final dynamic value;
-  DiscardMarker(this.value);
-
-  @override
-  String toString() => 'DiscardMarker($value)';
 }
 
 /// Apply all transforms to a value in the correct pipeline order
@@ -227,30 +173,21 @@ class DiscardMarker {
 /// // variables['fruit'] == 'apple'
 /// // result == 'apple' (unchanged)
 /// ```
-TransformResult applyAllTransforms(PageNode node, dynamic value,
-    Map<String, GroupTransformer> transforms, Map<String, dynamic> variables) {
+TransformResult applyAllTransforms(
+    PageNode node,
+    dynamic value,
+    Map<String, GroupTransformer> transformMaps,
+    Map<String, dynamic> variables) {
   if (value == null) return TransformResult(result: null);
-
-  //final context = TransformContext(node, variables);
-
-  // Define the correct order of transform execution
-  // don't include paramIndex, paramIndex works at the end result;
-  const transformOrder = [
-    QueryPart.paramTransform,
-    QueryPart.paramUpdate,
-    QueryPart.paramFilter,
-    QueryPart.paramSave,
-  ];
 
   // Apply transforms in the defined order, not map iteration order
   var transformResult = TransformResult(result: value);
+
+  final List<Transformer> transformers = [];
   for (final transformType in transformOrder) {
-    if (!transforms.containsKey(transformType)) continue;
+    if (!transformMaps.containsKey(transformType)) continue;
 
-    final transformValues = transforms[transformType]!;
-
-    transformResult = transformValues.transform(transformResult.result);
+    transformers.add(transformMaps[transformType]!);
   }
-
-  return transformResult;
+  return Transformer.transformMultiple(transformers, transformResult.result);
 }

@@ -144,11 +144,7 @@ export 'transforms/selection_transforms.dart' show applyFilter, applyIndex;
 export 'transforms/text_transforms.dart' show applyTextTransform;
 // Re-export transform pipeline for backward compatibility
 export 'transforms/transform_pipeline.dart'
-    show
-        applyAllTransforms,
-        TransformContext,
-        DiscardMarker,
-        validTextTransforms;
+    show applyAllTransforms, TransformContext;
 
 /// Backward compatibility shim for old JS executor API
 ///

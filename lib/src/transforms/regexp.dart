@@ -104,19 +104,22 @@ class RegExpTransformer extends Transformer {
 
   @override
   TransformResult transform(dynamic value) {
+    _log.finer("Transforming $value with $this");
     if (value == null) return TransformResult(result: null);
     return TransformResult(result: _transformInter(value));
   }
 
   @override
-  Map<String, dynamic> info() {
+  Map<String, dynamic> toJson() {
     if (errorMessage?.isNotEmpty == true) {
       return {
+        'name': Transformer.paramRegexp,
         'raw': rawValue,
         'errorMessage': errorMessage,
       };
     }
     return {
+      'name': Transformer.paramRegexp,
       'raw': rawValue,
       'pattern': _pattern,
       'replacement': _replaceMent,
@@ -129,4 +132,7 @@ class RegExpTransformer extends Transformer {
     _pattern = resolver.resolve(_pattern) as String;
     _replaceMent = resolver.resolve(_replaceMent) as String;
   }
+
+  @override
+  String get groupName => Transformer.paramTransform;
 }

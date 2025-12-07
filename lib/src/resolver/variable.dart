@@ -6,6 +6,11 @@ class VariableResolver implements Resolver {
 
   VariableResolver(this.variables);
 
+  @override
+  String toString() {
+    return variables.toString();
+  }
+
   String _resolveString(String input, Map<String, dynamic> variables) {
     // if (variables.isEmpty) return input; // Removed for debugging
     // Match ${expression}

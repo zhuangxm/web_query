@@ -11,7 +11,7 @@ class JsonTransformer extends Transformer {
   JsonTransformer(this._rawValue);
 
   @override
-  Map<String, dynamic> info() {
+  Map<String, dynamic> toJson() {
     return {
       'name': 'json',
       'varible': _rawValue,
@@ -28,4 +28,7 @@ class JsonTransformer extends Transformer {
     _log.fine("transform $value to json");
     return TransformResult(result: applyJsonTransform(value, _rawValue));
   }
+
+  @override
+  String get groupName => Transformer.paramTransform;
 }

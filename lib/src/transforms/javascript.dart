@@ -11,7 +11,7 @@ class JavascriptTransformer extends Transformer {
   }
 
   @override
-  Map<String, dynamic> info() {
+  Map<String, dynamic> toJson() {
     return {
       'name': 'jseval',
       'rawValue': _rawValue,
@@ -28,4 +28,7 @@ class JavascriptTransformer extends Transformer {
   TransformResult transform(value) {
     return TransformResult(result: applyJsEvalTransform(value, _rawValue));
   }
+
+  @override
+  String get groupName => Transformer.paramTransform;
 }

@@ -1,11 +1,10 @@
 import 'dart:convert';
 
-import 'package:function_tree/function_tree.dart';
 import 'package:html/dom.dart';
+import 'package:logging/logging.dart';
 import 'package:web_query/src/query_part.dart';
 import 'package:web_query/src/resolver/variable.dart';
 import 'package:web_query/src/transforms.dart';
-import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/javascript.dart';
 
 import 'src/html_query.dart';
@@ -15,7 +14,7 @@ import 'src/query_result.dart';
 import 'src/url_query.dart';
 
 export 'src/page_data.dart';
-export 'src/transforms.dart' show DiscardMarker;
+export 'src/transforms.dart';
 
 abstract class DataPicker {
   Iterable<PageNode> getCollection(PageNode node);
@@ -147,6 +146,9 @@ abstract class DataPicker {
 /// 'p/@text'              // First paragraph only
 /// '.content/p/@text'     // First paragraph in content
 /// ```
+
+final _log = Logger('QueryString');
+
 class QueryString extends DataPicker {
   final List<QueryPart> _queries;
   final String? query;
@@ -175,23 +177,20 @@ class QueryString extends DataPicker {
             .$3
             .toList();
 
-  dynamic execute(PageNode node,
+  dynamic _execute(PageNode node,
       {bool simplify = true, Map<String, dynamic>? initialVariables}) {
-    final pageUrl = node.pageData.url;
-    initialVariables = {
-      ...initialVariables ?? {},
-      "time": DateTime.now().millisecondsSinceEpoch,
-      "pageUrl": pageUrl,
-      "rootUrl": Uri.parse(pageUrl).origin
-    };
-    // Check if query contains >>> operator
-    if (query?.contains('>>>') ?? false) {
-      // Split at >>> and handle specially
-      final parts = query!.split('>>>');
-      if (parts.length == 2) {
-        // Execute first part and capture variables
-        final firstExecution = QueryString(parts[0].trim())
-            ._executeQueriesWithVariables(node,
+    final queries = (query ?? "").split('>>>');
+
+    PageNode currentNode = node;
+    while (queries.isNotEmpty) {
+      final firstQuery = queries.removeAt(0);
+
+      if (queries.isEmpty) {
+        return _executeQueries(currentNode,
+            simplify: simplify, initialVariables: initialVariables);
+      } else {
+        final firstExecution = QueryString(firstQuery.trim())
+            ._executeQueriesWithVariables(currentNode,
                 simplify: false, initialVariables: initialVariables);
 
         // Convert result to list if it isn't already
@@ -212,20 +211,26 @@ class QueryString extends DataPicker {
         // Create a new PageData with the JSON array
         final arrayPageData =
             PageData(node.pageData.url, '', jsonData: jsonData);
-        final arrayNode = arrayPageData.getRootElement();
-
-        // Execute second part on the JSON array with captured variables
-        return QueryString(parts[1].trim()).execute(arrayNode,
-            simplify: simplify, initialVariables: firstExecution.variables);
+        currentNode = arrayPageData.getRootElement();
       }
     }
+  }
 
+  dynamic execute(PageNode node,
+      {bool simplify = true, Map<String, dynamic>? initialVariables}) {
+    final pageUrl = node.pageData.url;
+    initialVariables = {
+      ...initialVariables ?? {},
+      "time": DateTime.now().millisecondsSinceEpoch,
+      "pageUrl": pageUrl,
+      "rootUrl": Uri.parse(pageUrl).origin
+    };
     // Normal execution
     // Reset JavaScript runtime only if query uses jseval
     if (_usesJseval()) {
       _resetJsRuntime();
     }
-    return _executeQueries(node,
+    return _execute(node,
         simplify: simplify, initialVariables: initialVariables);
   }
 
@@ -254,7 +259,6 @@ class QueryString extends DataPicker {
           {bool simplify = true, Map<String, dynamic>? initialVariables}) {
     final variables = <String, dynamic>{...?initialVariables};
     QueryResult result = QueryResult([]);
-    final hasMultipleQueries = _queries.length > 1;
 
     for (var i = 0; i < _queries.length; i++) {
       var query = _queries[i];
@@ -281,8 +285,7 @@ class QueryString extends DataPicker {
                         : (item is String && query.scheme == 'json')
                             ? _tryParseJson(node, item)
                             : PageNode(node.pageData, jsonData: item);
-            final subResult = _executeSingleQueryWithDiscard(
-                query, itemNode, variables, hasMultipleQueries);
+            final subResult = _executeSingleQuery(query, itemNode, variables);
             pipedData.addAll(subResult.data);
           }
           result_ = QueryResult(pipedData);
@@ -290,18 +293,14 @@ class QueryString extends DataPicker {
         // Replace result with piped result
         result = result_;
       } else {
-        result_ = _executeSingleQueryWithDiscard(
-            query, node, variables, hasMultipleQueries);
+        result_ = _executeSingleQuery(query, node, variables);
         result = result.combine(result_);
       }
     }
 
     //_log.fine("execute queries result: $result");
 
-    // Always filter out discarded items and unwrap kept items
-    result =
-        QueryResult(result.data.where((e) => e is! DiscardMarker).toList());
-
+    _log.fine("execute queries result: $result, simplify: $simplify");
     final finalResult = !simplify
         ? result.data.map((e) => e is Element
             ? PageNode(node.pageData, element: e)
@@ -322,186 +321,44 @@ class QueryString extends DataPicker {
         .result;
   }
 
-  String _resolveString(String input, Map<String, dynamic> variables) {
-    // if (variables.isEmpty) return input; // Removed for debugging
-    // Match ${expression}
-    return input.replaceAllMapped(RegExp(r'\$\{([^}]+)\}'), (match) {
-      var expression = match.group(1)!;
-      try {
-        // Replace variables in expression with their values
-        // We sort keys by length descending to avoid partial replacements (e.g. replacing 'id' in 'idx')
-        final sortedKeys = variables.keys.toList()
-          ..sort((a, b) => b.length.compareTo(a.length));
-
-        for (final key in sortedKeys) {
-          if (expression.contains(key)) {
-            final value = variables[key];
-            // Only replace if it looks like a variable (simple check)
-            // function_tree supports variables but we need to pass them or substitute them.
-            // Substituting is safer for now as function_tree interprets strings.
-            // But we need to be careful about string values vs numbers.
-            // If value is number, just put it in. If string, quote it?
-            // function_tree is mainly for math.
-
-            // Better approach: Check if expression is JUST a variable name first
-            if (expression == key) {
-              return value.toString();
-            }
-
-            if (value is num) {
-              expression = expression.replaceAll(key, value.toString());
-            } else if (value is String) {
-              final numValue = num.tryParse(value);
-              if (numValue != null) {
-                expression = expression.replaceAll(key, numValue.toString());
-              }
-            }
-          }
-        }
-
-        // If we replaced variables, or if the expression is just numbers, try to interpret
-        // If it's a string concatenation like "prefix" + id, function_tree might not handle it if it expects math.
-        // function_tree 0.9.0 supports some functions but mainly math.
-
-        // Let's try to interpret.
-        final result = expression.interpret();
-
-        // If result is integer (ends with .0), convert to int string
-        if (result is double && result == result.truncateToDouble()) {
-          return result.toInt().toString();
-        }
-        return result.toString();
-      } catch (e) {
-        // Fallback: if interpretation fails (e.g. string operations not supported by function_tree),
-        // check if it's a simple variable lookup
-        if (variables.containsKey(expression)) {
-          return variables[expression].toString();
-        }
-
-        // Handle string concatenation manually if function_tree failed
-        if (expression.contains('+')) {
-          // Simple string concatenation support
-          // Split by + and concatenate parts
-          // We need to be careful about quoted strings vs variables
-          // For now, let's just support simple variable + string or variable + variable
-          // This is a very basic implementation to support the user's request
-          try {
-            final parts = expression.split('+');
-            final sb = StringBuffer();
-            for (var part in parts) {
-              part = part.trim();
-              // Check if it's a quoted string
-              if ((part.startsWith("'") && part.endsWith("'")) ||
-                  (part.startsWith('"') && part.endsWith('"'))) {
-                sb.write(part.substring(1, part.length - 1));
-              } else if (variables.containsKey(part)) {
-                sb.write(variables[part]);
-              } else if (double.tryParse(part) != null) {
-                // It's a number
-                sb.write(part);
-              } else {
-                // Assume it's a string literal without quotes if it's not a variable?
-                // No, that's dangerous. But for "prefix + 1", "prefix" was replaced by "test".
-                // So expression is "test + 1".
-                // "test" is not in variables (it IS the value).
-                // So we just append it.
-                sb.write(part);
-              }
-            }
-            return sb.toString();
-          } catch (e) {
-            // Ignore and return original
-          }
-        }
-
-        // But function_tree throws on strings.
-
-        return match.group(0)!;
-      }
-    });
-  }
-
   QueryResult _executeSingleQuery(
       QueryPart query, PageNode node, Map<String, dynamic> variables) {
     // Resolve variables in path
-    final resolvedPath = _resolveString(query.path, variables);
+    final resolver = VariableResolver(variables);
+
+    query.resolve(resolver);
 
     //_log.fine("execute query: $query");
     if (query.scheme == 'template') {
-      return QueryResult([resolvedPath]);
+      return QueryResult([query.path]);
     }
 
     if (!['json', 'html', 'url'].contains(query.scheme)) {
       throw FormatException('Unsupported scheme: ${query.scheme}');
     }
 
-    // Resolve variables in parameters
-    final resolvedParameters = <String, List<String>>{};
-    query.parameters.forEach((key, values) {
-      resolvedParameters[key] =
-          values.map((v) => _resolveString(v, variables)).toList();
-    });
-
-    // Resolve variables in transforms
-    final resolver = VariableResolver(variables);
-    query.transforms.forEach((key, value) {
-      value.resolve(resolver);
-    });
-
-    // Create a new query part with resolved path and parameters
-    final resolvedQuery = query;
-
     QueryResult result = QueryResult([]);
-    if (resolvedPath.isNotEmpty) {
+    if (query.scheme == 'url') {
+      result = applyUrlPathFor(node, query);
+    } else if (query.path.isNotEmpty) {
       //final decodedPath = _decodePath(Uri.parse(query.path));
       result = query.scheme == 'json'
-          ? applyJsonPathFor(node.jsonData, resolvedPath)
-          : query.scheme == 'url'
-              ? applyUrlPathFor(node,
-                  resolvedQuery) // url query might need resolved path too but it uses query object
-              : applyHtmlPathFor(
-                  node.element,
-                  // Create a temporary query part with resolved path for HTML query
-                  resolvedQuery);
+          ? applyJsonPathFor(node.jsonData, query.path)
+          : applyHtmlPathFor(
+              node.element,
+              // Create a temporary query part with resolved path for HTML query
+              query);
     } else {
-      result = query.scheme == 'url'
-          ? applyUrlPathFor(node, resolvedQuery)
-          : QueryResult(node);
+      result = QueryResult(node);
     }
 
-    //_log.fine("execute query result before transform: $result");
-    final List<TransformResult> transformResults = result.data
-        .map<TransformResult>((e) =>
-            applyAllTransforms(node, e, resolvedQuery.transforms, variables))
-        .where((e) => e.isValid())
-        .toList();
+    final transformResult =
+        applyAllTransforms(node, result.data, query.transforms, variables);
 
-    variables.addAll(transformResults
-        .fold({}, (prev, next) => {...prev, ...next.changedVariables}));
-    result = QueryResult(transformResults.map((e) => e.result).toList());
+    variables.addAll(transformResult.changedVariables);
+    result = QueryResult(transformResult.result);
 
-    // Apply index transform to the result list
-    if (resolvedQuery.transforms.containsKey(QueryPart.paramIndex)) {
-      return QueryResult(query.transforms[QueryPart.paramIndex]
-          ?.transform(result.data)
-          .result);
-    } else {
-      return result;
-    }
-  }
-
-  QueryResult _executeSingleQueryWithDiscard(QueryPart query, PageNode node,
-      Map<String, dynamic> variables, bool shouldDiscardByDefault) {
-    var result = _executeSingleQuery(query, node, variables);
-
-    // Auto-discard when 'save' is present unless 'keep' is also present
-    final hasSave = query.transforms.containsKey('save');
-    final hasKeep = query.transforms.containsKey('keep');
-
-    if (hasSave && !hasKeep) {
-      result = QueryResult(result.data.map((e) => DiscardMarker(e)).toList());
-    }
-
+    _log.finer("execute result $transformResult");
     return result;
   }
 
@@ -538,13 +395,14 @@ class QueryString extends DataPicker {
     if (_queries.isEmpty) return 'QueryString(empty)';
 
     final buffer = StringBuffer();
-    buffer.writeln('QueryString:');
+    buffer.writeln('QueryString, part count: ${_queries.length}');
     for (var i = 0; i < _queries.length; i++) {
-      buffer.writeln('  [Part ${i + 1}]');
+      buffer.writeln('==[Part ${i + 1}]==');
       final partLines = _queries[i].toString().split('\n');
       for (var line in partLines) {
-        buffer.writeln('    $line');
+        buffer.writeln(line);
       }
+      buffer.writeln();
     }
     return buffer.toString().trim();
   }

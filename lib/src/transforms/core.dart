@@ -1,5 +1,4 @@
 import 'package:logging/logging.dart';
-import 'package:web_query/src/query_part.dart';
 import 'package:web_query/src/resolver/common.dart';
 import 'package:web_query/src/resolver/function.dart';
 import 'package:web_query/src/resolver/variable.dart';
@@ -12,6 +11,15 @@ import 'package:web_query/src/transforms/regexp.dart';
 import 'package:web_query/src/transforms/selection.dart';
 
 final _log = Logger("transformer.core");
+
+const transformOrder = [
+  Transformer.paramTransform,
+  Transformer.paramUpdate,
+  Transformer.paramFilter,
+  Transformer.paramIndex,
+  Transformer.paramSave,
+  Transformer.paramKeep
+];
 
 class ChainResolver extends Resolver {
   final List<Resolver> resolvers;
@@ -53,52 +61,58 @@ class GroupTransformer extends Transformer {
 
   List<Transformer> get transformers => _transformers;
   final bool mapList;
-  GroupTransformer(this._transformers, {this.mapList = false});
+  final bool enableMulti;
+  GroupTransformer(this._transformers,
+      {this.mapList = true, this.enableMulti = true});
 
   addTransform(Transformer transform) {
-    _transformers.add(transform);
+    if (enableMulti) {
+      _transformers.add(transform);
+    } else {
+      _transformers.clear();
+      _transformers.add(transform);
+    }
   }
 
   addTransforms(Iterable<Transformer> transforms) {
-    _transformers.addAll(transforms);
-  }
-
-  TransformResult transformSingle(value) {
-    return transformers.fold(TransformResult(result: value),
-        (prevResult, transform) {
-      final nv = transform.transform(prevResult.result);
-      return TransformResult(result: nv.result, changedVariables: {
-        ...prevResult.changedVariables,
-        ...nv.changedVariables
-      });
-    });
-  }
-
-  @override
-  TransformResult transform(value) {
-    _log.fine("group transfer $value");
-    _log.fine("group transfers $_transformers");
-    if (value is List && mapList) {
-      if (mapList) {
-        final results = value.map((v) => transformSingle(v));
-        return TransformResult(
-            result:
-                results.where((v) => v.isValid()).map((v) => v.result).toList(),
-            changedVariables: results
-                .map((v) => v.changedVariables)
-                .toList()
-                .fold({}, (prev, next) => {...prev, ...next}));
-      } else {
-        return transformSingle(value);
-      }
-    } else {
-      return transformSingle(value);
+    for (var transform in transforms) {
+      addTransform(transform);
     }
   }
 
   @override
-  Map<String, dynamic> info() {
-    return {"name": "group", "transformers": _transformers, "mapList": mapList};
+  TransformResult transform(value) {
+    // _log.fine("group transfer $value");
+    // _log.fine("group transfers $_transformers");
+    if (value is List && mapList) {
+      final results =
+          value.map((v) => Transformer.transformMultiple(transformers, v));
+      return TransformResult(
+          result:
+              results.where((v) => v.isValid()).map((v) => v.result).toList(),
+          changedVariables: results
+              .map((v) => v.changedVariables)
+              .toList()
+              .fold({}, (prev, next) => {...prev, ...next}));
+    } else {
+      return Transformer.transformMultiple(transformers, value);
+    }
+  }
+
+  @override
+  Map<String, dynamic> toJson() {
+    if (_transformers.isEmpty) {
+      return {};
+    } else if (_transformers.length == 1) {
+      return {
+        "mapList": mapList,
+        "transformer": _transformers.first.toJson(),
+      };
+    }
+    return {
+      "mapList": mapList,
+      "transformers": _transformers.map((e) => e.toJson()).toList(),
+    };
   }
 
   @override
@@ -107,6 +121,10 @@ class GroupTransformer extends Transformer {
       transformer.resolve(resolver);
     }
   }
+
+  //should never be called
+  @override
+  String get groupName => throw UnimplementedError();
 }
 
 class SaveTransformer extends Transformer {
@@ -121,12 +139,12 @@ class SaveTransformer extends Transformer {
 
   @override
   TransformResult transform(value) {
-    _log.fine("save transform $value to $varName");
+    _log.fine("save $value to $varName");
     return TransformResult(result: value, changedVariables: {varName: value});
   }
 
   @override
-  Map<String, dynamic> info() {
+  Map<String, dynamic> toJson() {
     return {
       "name": "save",
       "variable": varName,
@@ -137,43 +155,50 @@ class SaveTransformer extends Transformer {
   void resolve(Resolver resolver) {
     // do nothing.
   }
+
+  @override
+  String get groupName => Transformer.paramSave;
 }
 
-Transformer createTransform(String rawValue) {
-  _log.fine("create transform: $rawValue");
+List<Transformer> createTransform(String rawValue) {
+  //_log.fine("create transform: $rawValue");
   final parts = rawValue.split(':');
-  return createTransformWithName(parts[0], parts.length > 1 ? parts[1] : "");
+  return createTransformsWithName(parts[0], parts.skip(1).join(':'));
 }
 
-Transformer createTransformWithName(String name, String rawValue) {
-  _log.fine("create transform name: $name rawValue: $rawValue");
+List<Transformer> createTransformsWithName(String name, String rawValue) {
+  //_log.fine("create transform name: $name rawValue: $rawValue");
   switch (name) {
-    case QueryPart.paramRegexp:
-      return RegExpTransformer(rawValue);
+    case Transformer.paramRegexp:
+      return [RegExpTransformer(rawValue)];
     case 'jseval':
-      return JavascriptTransformer(rawValue);
+      return [JavascriptTransformer(rawValue)];
     case 'json':
-      return JsonTransformer(rawValue);
-    case QueryPart.paramTransform:
-      return GroupTransformer([]);
-    case QueryPart.paramFilter:
-      return FilterTransformer(rawValue);
-    case QueryPart.paramIndex:
-      return IndexTransformer(rawValue);
-    case QueryPart.paramUpdate:
-      return SimpleFunctionTransformer(
-          functionName: 'update',
-          functionResolver: FunctionResolver(defaultFunctions),
-          rawValue: rawValue);
-    case QueryPart.paramSave:
-      return SaveTransformer(rawValue);
-    case QueryPart.paramKeep:
-      return KeepTransformer(rawValue);
+      return [JsonTransformer(rawValue)];
+    case Transformer.paramTransform:
+      return createTransform(rawValue);
+    case Transformer.paramFilter:
+      return [FilterTransformer(rawValue)];
+    case Transformer.paramIndex:
+      return [IndexTransformer(rawValue)];
+    case Transformer.paramUpdate:
+      return [
+        SimpleFunctionTransformer(
+            functionName: 'update',
+            functionResolver: FunctionResolver(defaultFunctions),
+            rawValue: rawValue)
+      ];
+    case Transformer.paramSave:
+      return [SaveTransformer(rawValue), KeepTransformer('false')];
+    case Transformer.paramKeep:
+      return [KeepTransformer(rawValue)];
     default:
-      return SimpleFunctionTransformer(
-          functionName: name,
-          functionResolver: FunctionResolver(defaultFunctions),
-          rawValue: rawValue);
+      return [
+        SimpleFunctionTransformer(
+            functionName: name,
+            functionResolver: FunctionResolver(defaultFunctions),
+            rawValue: rawValue)
+      ];
     //throw ArgumentError.value(name, 'name', 'Unknown transform name');
   }
 }

@@ -1,12 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:web_query/query.dart';
 import 'package:web_query/src/resolver/function.dart';
 import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/core.dart';
 import 'package:web_query/src/transforms/selection.dart';
-import 'package:web_query/src/transforms/transform_pipeline.dart';
 
 void main() {
+  setUp(() {
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((record) {
+      // Suppress logs during tests unless debugging
+      print('${record.level.name}: ${record.time}: ${record.message}');
+    });
+  });
+
   group('Pipeline Order Verification', () {
     test('Verify pipeline order is enforced regardless of map order', () {
       final pageData = PageData('https://example.com', '<html></html>');
@@ -21,8 +29,9 @@ void main() {
 
       // Put transforms in REVERSE order: save, index, filter, transform
       final transformsReversed = {
+        'keep': GroupTransformer([KeepTransformer('true')]),
         'save': GroupTransformer([SaveTransformer('myVar')]),
-        'index': GroupTransformer([IndexTransformer('0')]),
+        'index': GroupTransformer([IndexTransformer('0')], mapList: false),
         'filter': GroupTransformer([FilterTransformer('HELLO')], mapList: true),
         'transform': GroupTransformer([
           SimpleFunctionTransformer(
@@ -32,8 +41,7 @@ void main() {
       };
 
       final result1 =
-          applyAllTransforms(node, value1, transformsReversed, variables)
-              .result;
+          applyAllTransforms(node, value1, transformsReversed, variables);
 
       // If pipeline order is enforced:
       // 1. transform: ['hello', 'world', 'test'] -> ['HELLO', 'WORLD', 'TEST']
@@ -51,7 +59,6 @@ void main() {
 
       print('Test 1 - Reversed map order:');
       print('  Result: $result1');
-      print('  variables["myVar"]: ${variables['myVar']}');
 
       // Check which behavior we got
       if (result1 == 'HELLO' && variables['myVar'] == 'HELLO') {
@@ -60,9 +67,9 @@ void main() {
         print('  ✗ Map entry order is used (incorrect behavior)');
       }
 
-      expect(result1, equals('HELLO'),
+      expect(result1.result, equals('HELLO'),
           reason: 'Pipeline order should be enforced');
-      expect(variables['myVar'], equals('HELLO'),
+      expect(result1.changedVariables['myVar'], equals('HELLO'),
           reason: 'Save should happen after all transforms');
 
       // Test 2: Another test with different order
@@ -71,7 +78,7 @@ void main() {
 
       // Put index before filter (which doesn't make sense)
       final transformsWrongOrder = {
-        'index': GroupTransformer([IndexTransformer('0')]),
+        'index': GroupTransformer([IndexTransformer('0')], mapList: false),
         'filter': GroupTransformer([
           FilterTransformer('TEST'),
         ], mapList: true),

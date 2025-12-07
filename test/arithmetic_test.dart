@@ -1,9 +1,17 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:web_query/query.dart';
 
 void main() {
+  setUp(() {
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((record) {
+      // Suppress logs during tests unless debugging
+      print('${record.level.name}: ${record.time}: ${record.message}');
+    });
+  });
   group('Variable Arithmetic', () {
     test('Simple arithmetic', () {
       const html = '<html><div>test</div></html>';

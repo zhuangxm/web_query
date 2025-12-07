@@ -1,21 +1,12 @@
-import 'dart:math';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web_query/query.dart';
 import 'package:web_query/src/resolver/function.dart';
 import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/core.dart';
 import 'package:web_query/src/transforms/selection.dart';
-import 'package:web_query/src/transforms/transform_pipeline.dart';
 
 void main() {
   group('Transform Pipeline Property Tests', () {
-    late Random random;
-
-    setUp(() {
-      random = Random(42); // Fixed seed for reproducibility
-    });
-
     /// **Feature: transform-reorganization, Property 1: Transform pipeline order preservation**
     /// **Validates: Requirements 2.1**
     test('Property: Transform pipeline order preservation', () {

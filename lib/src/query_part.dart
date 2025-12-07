@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
+import 'package:web_query/src/resolver/common.dart';
+import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/core.dart';
 
 // ignore: unused_element
@@ -11,29 +15,32 @@ class QueryPart {
   static const String schemeUrl = 'url';
   static const String schemeTemplate = 'template';
 
-  // Parameter keyword constants
-  static const String paramTransform = 'transform';
-  static const String paramFilter = 'filter';
-  static const String paramUpdate = 'update';
-  static const String paramRegexp = 'regexp';
-  static const String paramSave = 'save';
-  static const String paramKeep = 'keep';
-  static const String paramRequired = 'required';
-  static const String paramIndex = 'index';
-
   static const String reservedPattern =
-      "(?:$paramFilter|$paramUpdate|$paramTransform|$paramRegexp|$paramSave|$paramKeep|$paramIndex)";
+      "(?:${Transformer.paramFilter}|${Transformer.paramUpdate}|${Transformer.paramTransform}|${Transformer.paramRegexp}|${Transformer.paramSave}|${Transformer.paramKeep}|${Transformer.paramIndex})";
 
   final String scheme;
-  final String path;
+  String _path;
+  String get path => _path;
   final Map<String, List<String>> parameters;
   final Map<String, GroupTransformer> transforms;
   final bool required;
   final bool isPipe;
 
   QueryPart(
-      this.scheme, this.path, this.parameters, this.transforms, this.required,
+      this.scheme, this._path, this.parameters, this.transforms, this.required,
       {this.isPipe = false});
+
+  void resolve(Resolver resolver) {
+    _path = resolver.resolve(_path);
+    parameters.forEach((key, values) {
+      for (var v in values) {
+        values[values.indexOf(v)] = resolver.resolve(v);
+      }
+    });
+    transforms.forEach((key, value) {
+      value.resolve(resolver);
+    });
+  }
 
   static replaceSpecialCharacter(String part) {
     return part
@@ -105,14 +112,14 @@ class QueryPart {
     }
 
     // Pre-encode all reserved parameters
-    encodeParam(paramTransform);
-    encodeParam(paramFilter);
-    encodeParam(paramUpdate);
-    encodeParam(paramRegexp);
-    encodeParam(paramIndex);
+    encodeParam(Transformer.paramTransform);
+    encodeParam(Transformer.paramFilter);
+    encodeParam(Transformer.paramUpdate);
+    encodeParam(Transformer.paramRegexp);
+    encodeParam(Transformer.paramIndex);
 
     // Save and keep use simpler pattern (stop at & or end)
-    for (var param in [paramSave, paramKeep]) {
+    for (var param in [Transformer.paramSave, Transformer.paramKeep]) {
       final regex = RegExp('$param=([^&]*)');
       queryString = queryString.replaceAllMapped(regex, (match) {
         return '$param=${Uri.encodeQueryComponent(match.group(1)!)}';
@@ -147,7 +154,7 @@ class QueryPart {
 
     uri.queryParametersAll.forEach((key, values) {
       for (var value in values) {
-        final parts = key == paramTransform
+        final parts = key == Transformer.paramTransform
             ? _splitTransforms(value)
             : value.split(RegExp(r'(?<!\\);')); // Split on unescaped semicolons
 
@@ -164,50 +171,46 @@ class QueryPart {
 
   /// Moves transform-related parameters from params to transforms map
   static Map<String, GroupTransformer> _moveParamsToTransforms(
-      Map<String, List<String>> params) {
-    final transforms = <String, GroupTransformer>{};
-
-    // Move transform parameter
-    if (params.containsKey(paramTransform)) {
-      transforms[paramTransform] = GroupTransformer(
-          params
-              .remove(paramTransform)!
-              .map((e) => createTransform(e))
-              .toList(),
-          mapList: true);
-    }
-
-    // Move regexp parameter and convert to transform format
-    if (params.containsKey(paramRegexp)) {
-      final regexps = params
-          .remove(paramRegexp)!
-          .map((e) => createTransform('$paramRegexp:$e'))
-          .toList();
-
-      if (transforms.containsKey(paramTransform)) {
-        transforms[paramTransform]!.addTransforms(regexps);
-      } else {
-        transforms[paramTransform] = GroupTransformer(regexps);
-      }
-    }
+      Map<String, List<String>> params,
+      {bool throwException = true}) {
+    final transforms = <String, GroupTransformer>{
+      Transformer.paramTransform: GroupTransformer([], mapList: true),
+      Transformer.paramUpdate: GroupTransformer([], mapList: true),
+      Transformer.paramFilter: GroupTransformer([], mapList: true),
+      Transformer.paramIndex:
+          GroupTransformer([], mapList: false, enableMulti: false),
+      Transformer.paramSave:
+          GroupTransformer([], mapList: true, enableMulti: false),
+      Transformer.paramKeep:
+          GroupTransformer([], mapList: false, enableMulti: false),
+    };
 
     // Move other transform-related parameters
-    for (var (param, mapList) in [
-      (paramUpdate, true),
-      (paramFilter, true),
-      (paramSave, false),
-      (paramKeep, false),
-      (paramIndex, false)
-    ]) {
-      if (params.containsKey(param)) {
-        transforms[param] = GroupTransformer(
-            params
-                .remove(param)!
-                .map((e) => createTransformWithName(param, e))
-                .toList(),
-            mapList: mapList);
+    for (var paramEntry in params.entries) {
+      final param = paramEntry.key;
+      if (!Transformer.validTransformNames.contains(param)) {
+        if (throwException) {
+          throw FormatException(
+              'Unknown query parameter: "$param". Did you mean one of: ${Transformer.validTransformNames.join(', ')}?');
+        } else {
+          continue;
+        }
+      }
+
+      final transformsCreated = paramEntry.value
+          .map((e) => createTransformsWithName(param, e))
+          .expand((e) => e)
+          .toList();
+
+      for (var transformer in transformsCreated) {
+        //_log.fine("add $transformer to ${transformer.groupName}");
+        transforms[transformer.groupName]!.addTransform(transformer);
       }
     }
+
+    //_log.fine("transforms: $transforms");
+    transforms.removeWhere((key, value) => value.transformers.isEmpty);
+    //_log.fine("transforms: $transforms");
 
     return transforms;
   }
@@ -238,39 +241,11 @@ class QueryPart {
     final params = _extractQueryParameters(uri);
 
     // Move transform-related params to transforms map
-    final transforms = _moveParamsToTransforms(params);
-
-    // Validate parameters
-    _validateParameters(params, transforms, scheme);
+    final transforms =
+        _moveParamsToTransforms(params, throwException: scheme != schemeUrl);
 
     return QueryPart(scheme, path, params, transforms, required,
         isPipe: isPipe);
-  }
-
-  static void _validateParameters(Map<String, List<String>> params,
-      Map<String, GroupTransformer> transforms, String scheme) {
-    // Known valid parameter names
-    const validParams = {paramRequired};
-    const validTransforms = {
-      paramTransform,
-      paramFilter,
-      paramUpdate,
-      paramSave,
-      paramKeep,
-      paramRegexp,
-      paramIndex
-    };
-
-    // Check for unknown parameters (likely typos)
-    // Skip validation for URL scheme as it has dynamic parameters (_scheme, _host, etc.)
-    if (scheme != schemeUrl) {
-      for (var key in params.keys) {
-        if (!validParams.contains(key)) {
-          throw FormatException(
-              'Unknown query parameter: "$key". Did you mean one of: ${validTransforms.join(', ')}?');
-        }
-      }
-    }
   }
 
   bool isRequired() {
@@ -280,9 +255,15 @@ class QueryPart {
   @override
   String toString() {
     final buffer = StringBuffer();
-    buffer.writeln('QueryPart:');
-    buffer.writeln('  Scheme: $scheme');
-    buffer.writeln('  Path: $path');
+    buffer.writeln('Scheme: $scheme');
+    buffer.writeln('Path: $path');
+    final flags = <String>[];
+    if (required) flags.add('required');
+    if (isPipe) flags.add('pipe');
+
+    if (flags.isNotEmpty) {
+      buffer.writeln('Flags: ${flags.join(", ")}');
+    }
 
     if (parameters.isNotEmpty) {
       buffer.writeln('  Parameters:');
@@ -292,19 +273,12 @@ class QueryPart {
     }
 
     if (transforms.isNotEmpty) {
-      buffer.writeln('  Transforms:');
-      transforms.forEach((key, values) {
-        buffer.writeln(
-            '    $key: mapList: ${values.mapList}, transformers: ${values.transformers.map((e) => e.info()).toList()}');
-      });
-    }
-
-    final flags = <String>[];
-    if (required) flags.add('required');
-    if (isPipe) flags.add('pipe');
-
-    if (flags.isNotEmpty) {
-      buffer.writeln('  Flags: ${flags.join(", ")}');
+      buffer.writeln('Transforms:');
+      for (var key in transformOrder) {
+        if (transforms.containsKey(key)) {
+          buffer.writeln('  ${jsonEncode(transforms[key]!.toJson())}');
+        }
+      }
     }
 
     return buffer.toString().trim();

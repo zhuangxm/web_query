@@ -14,7 +14,7 @@ class FilterTransformer extends Transformer {
   }
 
   @override
-  Map<String, dynamic> info() {
+  Map<String, dynamic> toJson() {
     return {
       "rawValue": _rawValue,
       "filters": _filters,
@@ -32,6 +32,9 @@ class FilterTransformer extends Transformer {
       _filters[i] = resolver.resolve(_filters[i]);
     }
   }
+
+  @override
+  String get groupName => Transformer.paramFilter;
 }
 
 class IndexTransformer extends Transformer {
@@ -40,7 +43,7 @@ class IndexTransformer extends Transformer {
   IndexTransformer(this._rawValue);
 
   @override
-  Map<String, dynamic> info() {
+  Map<String, dynamic> toJson() {
     return {
       "index": _rawValue,
     };
@@ -48,12 +51,16 @@ class IndexTransformer extends Transformer {
 
   @override
   TransformResult transform(dynamic value) {
-    _log.fine("apply index: $value, $_rawValue");
+    _log.fine("apply index: $_rawValue to $value");
     return TransformResult(result: applyIndex(value, _rawValue));
   }
 
   @override
   void resolve(Resolver resolver) {
+    _log.fine("resolve index: $_rawValue resolver: $resolver");
     _rawValue = resolver.resolve(_rawValue);
   }
+
+  @override
+  String get groupName => Transformer.paramIndex;
 }
