@@ -6,6 +6,7 @@ import 'package:web_query/src/query_part.dart';
 import 'package:web_query/src/resolver/variable.dart';
 import 'package:web_query/src/transforms.dart';
 import 'package:web_query/src/transforms/common.dart';
+import 'package:web_query/src/transforms/core.dart';
 import 'package:web_query/src/transforms/javascript.dart';
 
 import 'src/html_query.dart';
@@ -422,4 +423,23 @@ class QueryString extends DataPicker {
     }
     return buffer.toString().trim();
   }
+}
+
+ResultWithVariables applyAllTransforms(
+    PageNode node,
+    dynamic value,
+    Map<String, GroupTransformer> transformMaps,
+    Map<String, dynamic> variables) {
+  if (value == null) return ResultWithVariables(result: null);
+
+  // Apply transforms in the defined order, not map iteration order
+  var transformResult = ResultWithVariables(result: value);
+
+  final List<Transformer> transformers = [];
+  for (final transformType in transformOrder) {
+    if (!transformMaps.containsKey(transformType)) continue;
+
+    transformers.add(transformMaps[transformType]!);
+  }
+  return Transformer.transformMultiple(transformers, transformResult.result);
 }

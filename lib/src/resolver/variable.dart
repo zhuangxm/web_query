@@ -6,6 +6,8 @@ class VariableResolver implements Resolver {
 
   VariableResolver(this.variables);
 
+  static Map<String, dynamic> defaultVariable = {};
+
   @override
   String toString() {
     return variables.toString();
@@ -112,6 +114,6 @@ class VariableResolver implements Resolver {
 
   @override
   dynamic resolve(dynamic value, {Map<String, dynamic>? params}) {
-    return _resolveString(value, params ?? variables);
+    return _resolveString(value, {...defaultVariable, ...params ?? variables});
   }
 }

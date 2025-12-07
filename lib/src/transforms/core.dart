@@ -10,6 +10,8 @@ import 'package:web_query/src/transforms/json.dart';
 import 'package:web_query/src/transforms/regexp.dart';
 import 'package:web_query/src/transforms/selection.dart';
 
+export '../resolver/core.dart';
+
 final _log = Logger("transformer.core");
 
 const transformOrder = [
@@ -35,7 +37,7 @@ class ChainResolver extends Resolver {
   }
 }
 
-Map<String, CreateTransFormFunction> defaultFunctions = {
+Map<String, CreateTransformFunction> defaultFunctions = {
   "upper": (params) => (v) => toUpperCase(v),
   "lower": (params) => (v) => toLowerCase(v),
   "md5": (params) => (v) => md5Hash(v),
@@ -48,7 +50,7 @@ Map<String, CreateTransFormFunction> defaultFunctions = {
 
 Resolver createDefaultResolver({
   Map<String, dynamic> variables = const {},
-  Map<String, CreateTransFormFunction> functions = const {},
+  Map<String, CreateTransformFunction> functions = const {},
 }) {
   return ChainResolver(resolvers: [
     VariableResolver(variables),

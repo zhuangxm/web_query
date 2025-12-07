@@ -129,6 +129,7 @@ library;
 // Re-export data transforms for backward compatibility
 import 'transforms/data_transforms.dart' show JsExecutorRegistry;
 
+export 'transforms/core.dart';
 export 'transforms/data_transforms.dart'
     show
         applyJsonTransform,
@@ -143,8 +144,6 @@ export 'transforms/selection_transforms.dart' show applyFilter, applyIndex;
 // Re-export text transforms for backward compatibility
 export 'transforms/text_transforms.dart' show applyTextTransform;
 // Re-export transform pipeline for backward compatibility
-export 'transforms/transform_pipeline.dart'
-    show applyAllTransforms, TransformContext;
 
 /// Backward compatibility shim for old JS executor API
 ///
