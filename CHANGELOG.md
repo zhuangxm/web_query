@@ -1,3 +1,27 @@
+## 0.8.5
+
+### Documentation
+
+- **Global Variables and Initial Variables**: Added a dedicated section to `README.md`
+  - Documents built-in globals: `pageUrl`, `rootUrl`, `time`
+  - Explains `VariableResolver.defaultVariable` and how to override or extend it
+  - Details the `initialVariables` parameter for `QueryString.execute`, `getValue`, `getCollection`, and `getCollectionValue`
+  - Includes practical examples for passing context (e.g., `pageUrl`) and computed values
+
+- **Custom Transform Functions**: Added a new section to `README.md`
+  - Documents `FunctionResolver.defaultFunctions` as the registry for named transforms
+  - Provides examples for registering transforms (e.g., `slugify`, `trim`) and using them via `?transform=`
+  - Notes on function signatures and optional JSON parameters
+
+- **ADDING_TRANSFORMS.md**: Extended with "Registering Custom Transform Functions"
+  - Step-by-step guide for adding and registering named transform functions
+  - Usage guidance (pure functions, side effects, JSON params, naming)
+
+### Notes
+
+- No breaking changes
+- Documentation-only update; no runtime or API changes
+
 ## 0.8.2
 - **Fix**:  correct handle javascript variable definition omit ; at the end of text. and could be space before ;
 

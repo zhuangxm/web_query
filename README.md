@@ -71,7 +71,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.8.2
+  web_query: ^0.8.5
 ```
 
 Then run:
@@ -363,6 +363,7 @@ Select a specific element from query results using `?index=`:
 ```
 
 **Notes:**
+
 - Returns `null` for out-of-bounds indices
 - Works with any list result (HTML elements, JSON arrays, etc.)
 - Applied after other transforms
@@ -538,19 +539,21 @@ Pass the output of one query as the input to the next:
 
 **Key Differences:**
 
-| Feature | `>>` (Regular Pipe) | `>>>` (Array Pipe) |
-|---------|---------------------|-------------------|
+| Feature    | `>>` (Regular Pipe)   | `>>>` (Array Pipe)    |
+| ---------- | --------------------- | --------------------- |
 | Processing | One element at a time | All elements as array |
-| Use case | Transform each item | Array operations |
-| Example | `*div >> json:name` | `*div >>> json:0-2` |
-| Result | Flattened list | Array subset |
+| Use case   | Transform each item   | Array operations      |
+| Example    | `*div >> json:name`   | `*div >>> json:0-2`   |
+| Result     | Flattened list        | Array subset          |
 
 **When to use `>>`:**
+
 - Extracting properties from each element
 - Transforming each item individually
 - Nested parsing (HTML in JSON)
 
 **When to use `>>>`:**
+
 - Array slicing and indexing
 - Getting array length/count
 - Range selection
@@ -792,6 +795,7 @@ if (result.isValid) {
 #### Validation Features
 
 ✅ **Comprehensive Error Detection**
+
 - Invalid scheme names (e.g., `jsn:` instead of `json:`)
 - Missing separators (e.g., `json items` instead of `json:items`)
 - Malformed parameters (e.g., `?save=x?keep` instead of `?save=x&keep`)
@@ -799,11 +803,13 @@ if (result.isValid) {
 - Invalid operators (e.g., `+` instead of `++`)
 
 ✅ **Smart Suggestions**
+
 - Typo correction for scheme names
 - Example corrections for common mistakes
 - Position indicators showing exactly where errors occur
 
 ✅ **Query Information**
+
 - Detailed breakdown of query parts
 - List of operators used
 - Variables extracted
@@ -820,7 +826,7 @@ class ValidationResult {
   List<ValidationError> errors;  // All errors found
   List<ValidationWarning> warnings; // Potential issues
   QueryInfo? info;               // Detailed query info (when valid)
-  
+
   String toString();             // Human-readable format
   String toJson();               // JSON format for logging/APIs
 }
@@ -837,10 +843,10 @@ final result = query.validate();
 
 // Output:
 // Error at position 0: Invalid scheme 'jsn'
-// 
+//
 // Query: jsn:items
 //        ^^^
-// 
+//
 // Did you mean 'json'? Valid schemes are: html, json, url, template
 ```
 
@@ -853,10 +859,10 @@ final result = query.validate();
 
 // Output:
 // Error at position 4: Missing ":" after scheme "json"
-// 
+//
 // Query: json items
 //            ^
-// 
+//
 // Use: json:items
 ```
 
@@ -869,10 +875,10 @@ final result = query.validate();
 
 // Output:
 // Error at position 20: Multiple "?" found in parameters
-// 
+//
 // Query: json:items?save=x?keep
 //                         ^
-// 
+//
 // Example: ?param1=value&param2=value
 ```
 
@@ -885,10 +891,10 @@ final result = query.validate();
 
 // Output:
 // Error at position 22: Unmatched "${" in variable syntax
-// 
+//
 // Query: template:Hello ${name
 //                       ^^
-// 
+//
 // Variables should be: ${varName}
 ```
 
@@ -901,10 +907,10 @@ final result = query.validate();
 
 // Output:
 // Error at position 7: Invalid operator "+"
-// 
+//
 // Query: json:a + json:b
 //               ^
-// 
+//
 // Valid operators are: ++, ||, >>, >>>
 ```
 
@@ -978,11 +984,12 @@ print(result);
 #### Validation Best Practices
 
 **Development & Testing:**
+
 ```dart
 test('query syntax is valid', () {
   final query = QueryString(myQueryString);
   final result = query.validate();
-  
+
   expect(result.isValid, isTrue);
   expect(result.info!.totalParts, equals(2));
   expect(result.info!.operators, contains('++'));
@@ -990,6 +997,7 @@ test('query syntax is valid', () {
 ```
 
 **Debugging:**
+
 ```dart
 // Validate during development to catch issues early
 final query = QueryString(complexQueryString);
@@ -1006,6 +1014,7 @@ final data = query.execute(node);
 ```
 
 **Production (Optional):**
+
 ```dart
 // Validation is optional - queries execute normally without it
 final query = QueryString(userInput);
@@ -1023,6 +1032,7 @@ final data = query.execute(node);
 ```
 
 **API/Logging:**
+
 ```dart
 // Send validation results to monitoring/logging systems
 final query = QueryString(userQuery);
@@ -1038,13 +1048,13 @@ await analytics.logEvent('query_validation', {
 
 #### Validation Error Reference
 
-| Error Type | Cause | Solution |
-|------------|-------|----------|
-| **Invalid scheme** | Scheme not in valid list | Use: `html:`, `json:`, `url:`, or `template:` |
-| **Missing separator** | Scheme without `:` | Add `:` after scheme: `json:path` |
-| **Parameter syntax** | Multiple `?` without `&` | Use `&` for additional params: `?a=1&b=2` |
-| **Variable syntax** | Unmatched `${` or `}` | Ensure variables are: `${varName}` |
-| **Invalid operator** | Unknown operator | Use: `++`, `\|\|`, `>>`, or `>>>` |
+| Error Type            | Cause                    | Solution                                      |
+| --------------------- | ------------------------ | --------------------------------------------- |
+| **Invalid scheme**    | Scheme not in valid list | Use: `html:`, `json:`, `url:`, or `template:` |
+| **Missing separator** | Scheme without `:`       | Add `:` after scheme: `json:path`             |
+| **Parameter syntax**  | Multiple `?` without `&` | Use `&` for additional params: `?a=1&b=2`     |
+| **Variable syntax**   | Unmatched `${` or `}`    | Ensure variables are: `${varName}`            |
+| **Invalid operator**  | Unknown operator         | Use: `++`, `\|\|`, `>>`, or `>>>`             |
 
 #### Why Validation is Separate
 
@@ -1138,6 +1148,88 @@ final prices = QueryString(
   '*span.price/@text?transform=regexp:/\$(\d+\.\d{2})/$1/'
 ).getCollectionValue(node);
 ```
+
+### Global Variables and Initial Variables
+
+- Built-in variables: `pageUrl`, `rootUrl`, and `time` are automatically available during `execute()`.
+- Global variables: set persistent defaults via `VariableResolver.defaultVariable` (shared across queries).
+- Initial variables: pass per-call values via the optional `initialVariables` on `execute`, `getValue`, `getCollection`, `getCollectionValue`.
+
+Example:
+
+```dart
+import 'package:web_query/query.dart';
+import 'package:web_query/src/resolver/variable.dart';
+
+// Define global variables available to all queries
+VariableResolver.defaultVariable = {
+  'env': 'prod',
+  'apiKey': 'XYZ-123',
+};
+
+final pageData = PageData('https://example.com/articles/42', '<html></html>');
+final node = pageData.getRootElement();
+
+// Per-call variables
+final sessionVars = {
+  'id': 42,
+  'prefix': 'post',
+};
+
+// Use variables in templates; built-ins include pageUrl, rootUrl, time
+final summary = QueryString(
+  'template:${prefix}-${id} at ${time} from ${rootUrl}'
+).getValue(node, initialVariables: sessionVars);
+
+// Use variables in paths and transforms
+final absLinks = QueryString(
+  '*a/@href?transform=regexp:/^\\/(.+)/${rootUrl}$1/'
+).getCollectionValue(node, initialVariables: sessionVars);
+```
+
+Notes:
+
+- `time` is injected as `DateTime.now().millisecondsSinceEpoch`.
+- `pageUrl` and `rootUrl` come from `PageData.url`.
+- Per-call `initialVariables` override `VariableResolver.defaultVariable` for the duration of that call.
+
+### Custom Transform Functions
+
+You can register your own transform functions and call them via `?transform=<name>`.
+
+- Register functions globally using `FunctionResolver.defaultFunctions`.
+- Each entry maps a function name to a factory that receives params and returns the transform.
+- Use optional JSON params in the query: `?transform=<name>:{"key":"value"}`.
+
+Example (slugify):
+
+```dart
+import 'package:web_query/src/resolver/function.dart';
+
+// Register a custom transform
+FunctionResolver.defaultFunctions['slugify'] = (params) => (value) {
+  if (value == null) return null;
+  final s = value.toString();
+  final sep = (params['sep'] as String?) ?? '-';
+  final cleaned = s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), sep)
+      .replaceAll(RegExp('${RegExp.escape(sep)}+'), sep)
+      .replaceAll(RegExp('^${RegExp.escape(sep)}|${RegExp.escape(sep)}\$'), '');
+  return cleaned;
+};
+
+// Usage in a query (with optional params)
+final slug = QueryString(
+  'json:title?transform=slugify:{"sep":"_"}'
+).getValue(node);
+```
+
+Tips:
+
+- Custom functions participate in the `transform` pipeline and can be chained (`?transform=slugify;upper`).
+- If your function needs structured params, supply them as JSON after `:`.
+- Logging and error handling are recommended inside function bodies.
 
 ### URL Queries
 
@@ -1485,16 +1577,19 @@ HtmlTreeView(document: parsedDocument)
 The query validation feature is **completely additive** and requires no migration. It's an opt-in feature that doesn't affect existing code.
 
 **What's New:**
+
 - New `validate()` method on `QueryString` class
 - Returns `ValidationResult` with errors, warnings, and query information
 - Validation is optional and separate from query execution
 
 **No Breaking Changes:**
+
 - All existing queries continue to work exactly as before
 - Validation is opt-in (call `validate()` explicitly)
 - Query execution is unchanged
 
 **How to Use:**
+
 ```dart
 // Your existing code works unchanged
 final query = QueryString('json:items');
@@ -1514,6 +1609,7 @@ See the [Query Validation](#query-validation) section for detailed usage example
 The `?save=` parameter now automatically omits results from final output unless `&keep` is specified.
 
 **Old Behavior:**
+
 ```dart
 // Results were kept by default
 'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
@@ -1521,6 +1617,7 @@ The `?save=` parameter now automatically omits results from final output unless 
 ```
 
 **New Behavior:**
+
 ```dart
 // Results are omitted by default (cleaner templates)
 'json:firstName?save=fn ++ json:lastName?save=ln ++ template:${fn} ${ln}'
@@ -1532,6 +1629,7 @@ The `?save=` parameter now automatically omits results from final output unless 
 ```
 
 **Migration:**
+
 - If you want the old behavior, add `&keep` to your `?save=` parameters
 - If you prefer cleaner output (recommended), no changes needed
 

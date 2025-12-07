@@ -73,58 +73,68 @@ abstract class Transformer {
 
 class SimpleFunctionTransformer extends Transformer {
   final String functionName;
-  final String rawValue;
-  late Map<String, dynamic>? _params;
+  String _rawValue = "";
   final FunctionResolver functionResolver;
   String? errorMessage;
 
   SimpleFunctionTransformer(
       {required this.functionName,
       required this.functionResolver,
-      this.rawValue = ""}) {
+      rawValue = ""}) {
+    _rawValue = rawValue;
     if (!functionResolver.hasFunction(functionName)) {
       throw FormatException('Unknown transform: "$functionName"');
-    } else if (rawValue.isNotEmpty) {
-      try {
-        _params = jsonDecode(rawValue);
-      } on FormatException {
-        _log.warning(
-            'Invalid JSON format for function parameters. Function: $functionName, Raw Value: $rawValue');
-        _params = null;
-        errorMessage = 'Invalid JSON format for function parameters.';
-      }
-    } else {
-      _params = null;
     }
   }
 
   @override
   Map<String, dynamic> toJson() {
+    final params = tryDecodeParams();
     if (errorMessage?.isNotEmpty == true) {
       return {
         "name": functionName,
-        "raw_value": rawValue,
-        "params": _params,
+        "raw_value": _rawValue,
+        "params": params,
         "error_message": errorMessage,
       };
     }
     return {
       "name": functionName,
-      "raw_value": rawValue,
-      "params": _params,
+      "raw_value": _rawValue,
+      "params": params,
     };
   }
 
   @override
   void resolve(Resolver resolver) {
-    //resolver.resolve(rawValue);
+    _rawValue = resolver.resolve(_rawValue);
+  }
+
+  Map<String, dynamic>? tryDecodeParams() {
+    Map<String, dynamic>? params;
+    if (_rawValue.isNotEmpty) {
+      try {
+        params = jsonDecode(_rawValue);
+      } on FormatException {
+        _log.warning(
+            'Invalid JSON format for function parameters. Function: $functionName, Raw Value: $_rawValue');
+        params = null;
+        errorMessage = 'Invalid JSON format for function parameters.';
+      }
+    } else {
+      params = null;
+    }
+    return params;
   }
 
   @override
   ResultWithVariables transform(value) {
     _log.finer("Transforming $value with $functionName");
+
+    final params = tryDecodeParams();
+
     final result = functionResolver.resolve(value, params: {
-      ..._params ?? {},
+      ...params ?? {},
       FunctionResolver.functionNameKey: functionName
     });
     return ResultWithVariables(result: result, variables: {});

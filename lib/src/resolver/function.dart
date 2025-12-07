@@ -30,10 +30,10 @@ class FunctionResolver implements Resolver {
   static const String functionNameKey = "function_name";
 
   bool hasFunction(String functionName) {
-    return functions.containsKey(functionName);
+    return getCreateFunction(functionName) != null;
   }
 
-  getCreateFunction(String functionName) {
+  CreateTransformFunction? getCreateFunction(String functionName) {
     return functions[functionName] ??
         defaultFunctions[functionName] ??
         _buildinFunctions[functionName];

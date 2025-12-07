@@ -31,7 +31,7 @@ class QueryPart {
       {this.isPipe = false});
 
   void resolve(Resolver resolver) {
-    _log.fine("resolve path: $_path, $resolver query ${toString()}");
+    //_log.fine("resolve path: $_path, $resolver query ${toString()}");
     _path = resolver.resolve(_path);
     parameters.forEach((key, values) {
       for (var v in values) {

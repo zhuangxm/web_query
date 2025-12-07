@@ -198,3 +198,62 @@ This centralized approach provides:
 3. `test/text_transforms_extended_test.dart` - Tests (optional but recommended)
 
 That's only **3 locations** to update, and the system handles the rest automatically!
+
+---
+
+## Registering Custom Transform Functions
+
+In addition to built-in text transforms, you can register your own named transform functions and use them via the `transform` pipeline.
+
+### How It Works
+
+- Register a function under a name in `FunctionResolver.defaultFunctions`.
+- Each registration provides a factory that receives params and returns a function that transforms the input value.
+- Use it in queries via `?transform=<name>` and optional JSON params: `?transform=<name>:{"k":"v"}`.
+
+### Example: `slugify`
+
+```dart
+import 'package:web_query/src/resolver/function.dart';
+
+// Register globally
+FunctionResolver.defaultFunctions['slugify'] = (params) => (value) {
+  if (value == null) return null;
+  final s = value.toString();
+  final sep = (params['sep'] as String?) ?? '-';
+  final cleaned = s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), sep)
+      .replaceAll(RegExp('${RegExp.escape(sep)}+'), sep)
+      .replaceAll(RegExp('^${RegExp.escape(sep)}|${RegExp.escape(sep)}\$'), '');
+  return cleaned;
+};
+
+// Use in a query
+final slug = QueryString('json:title?transform=slugify:{"sep":"_"}')
+    .getValue(node);
+```
+
+### Example: `trim` with side options
+
+```dart
+FunctionResolver.defaultFunctions['trim'] = (params) => (value) {
+  if (value == null) return null;
+  var s = value.toString();
+  final left = params['left'] == true;
+  final right = params['right'] == true;
+  if (left && !right) return s.replaceFirst(RegExp(r'^\s+'), '');
+  if (right && !left) return s.replaceFirst(RegExp(r'\s+$'), '');
+  return s.trim();
+};
+
+// Usage
+QueryString('*p/@text?transform=trim:{"left":true}')
+    .getCollectionValue(node);
+```
+
+### Notes
+
+- Custom functions are invoked via `?transform=<name>` and can be chained with other transforms.
+- Params are parsed from JSON after `:` and passed to your factory.
+- Validation ensures unknown transform names are rejected, so register before use.

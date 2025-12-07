@@ -1,10 +1,7 @@
 import 'package:logging/logging.dart';
 import 'package:web_query/src/resolver/common.dart';
 import 'package:web_query/src/resolver/function.dart';
-import 'package:web_query/src/resolver/variable.dart';
 import 'package:web_query/src/transforms/common.dart';
-import 'package:web_query/src/transforms/data_transforms.dart';
-import 'package:web_query/src/transforms/functions.dart';
 import 'package:web_query/src/transforms/javascript.dart';
 import 'package:web_query/src/transforms/json.dart';
 import 'package:web_query/src/transforms/regexp.dart';
@@ -12,6 +9,7 @@ import 'package:web_query/src/transforms/selection.dart';
 
 export '../resolver/core.dart';
 
+// ignore: unused_element
 final _log = Logger("transformer.core");
 
 const transformOrder = [
@@ -22,41 +20,6 @@ const transformOrder = [
   Transformer.paramSave,
   Transformer.paramKeep
 ];
-
-class ChainResolver extends Resolver {
-  final List<Resolver> resolvers;
-
-  ChainResolver({required this.resolvers});
-  @override
-  resolve(value, {Map<String, dynamic>? params}) {
-    var result = value;
-    for (final resolver in resolvers) {
-      result = resolver.resolve(result, params: params);
-    }
-    return result;
-  }
-}
-
-Map<String, CreateTransformFunction> defaultFunctions = {
-  "upper": (params) => (v) => toUpperCase(v),
-  "lower": (params) => (v) => toLowerCase(v),
-  "md5": (params) => (v) => md5Hash(v),
-  "base64": (params) => (v) => base64Encode(v),
-  "base64decode": (params) => (v) => base64Decode(v),
-  "reverse": (params) => (v) => reverseString(v),
-  "sha1": (params) => (v) => sha1Hash(v),
-  "update": (params) => (v) => applyUpdateJson(v, params),
-};
-
-Resolver createDefaultResolver({
-  Map<String, dynamic> variables = const {},
-  Map<String, CreateTransformFunction> functions = const {},
-}) {
-  return ChainResolver(resolvers: [
-    VariableResolver(variables),
-    FunctionResolver({...defaultFunctions, ...functions})
-  ]);
-}
 
 class GroupTransformer extends Transformer {
   final List<Transformer> _transformers;
@@ -141,7 +104,7 @@ class SaveTransformer extends Transformer {
 
   @override
   ResultWithVariables transform(value) {
-    _log.fine("save $value to $varName");
+    //_log.fine("save $value to $varName");
     return ResultWithVariables(result: value, variables: {varName: value});
   }
 
@@ -187,7 +150,7 @@ List<Transformer> createTransformsWithName(String name, String rawValue) {
       return [
         SimpleFunctionTransformer(
             functionName: 'update',
-            functionResolver: FunctionResolver(defaultFunctions),
+            functionResolver: FunctionResolver({}),
             rawValue: rawValue)
       ];
     case Transformer.paramSave:
@@ -198,7 +161,7 @@ List<Transformer> createTransformsWithName(String name, String rawValue) {
       return [
         SimpleFunctionTransformer(
             functionName: name,
-            functionResolver: FunctionResolver(defaultFunctions),
+            functionResolver: FunctionResolver({}),
             rawValue: rawValue)
       ];
     //throw ArgumentError.value(name, 'name', 'Unknown transform name');

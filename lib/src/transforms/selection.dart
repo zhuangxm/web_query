@@ -3,6 +3,7 @@ import 'package:web_query/src/resolver/common.dart';
 import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/selection_transforms.dart';
 
+// ignore: unused_element
 final _log = Logger("transformer.selection");
 
 class FilterTransformer extends Transformer {
@@ -51,13 +52,13 @@ class IndexTransformer extends Transformer {
 
   @override
   ResultWithVariables transform(dynamic value) {
-    _log.fine("apply index: $_rawValue to $value");
+    //_log.fine("apply index: $_rawValue to $value");
     return ResultWithVariables(result: applyIndex(value, _rawValue));
   }
 
   @override
   void resolve(Resolver resolver) {
-    _log.fine("resolve index: $_rawValue resolver: $resolver");
+    //_log.fine("resolve index: $_rawValue resolver: $resolver");
     _rawValue = resolver.resolve(_rawValue);
   }
 

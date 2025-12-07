@@ -3,10 +3,8 @@ import 'dart:convert';
 import 'package:html/dom.dart';
 import 'package:logging/logging.dart';
 import 'package:web_query/src/query_part.dart';
-import 'package:web_query/src/resolver/variable.dart';
 import 'package:web_query/src/transforms.dart';
 import 'package:web_query/src/transforms/common.dart';
-import 'package:web_query/src/transforms/core.dart';
 import 'package:web_query/src/transforms/javascript.dart';
 
 import 'src/html_query.dart';
@@ -19,9 +17,12 @@ export 'src/page_data.dart';
 export 'src/transforms.dart';
 
 abstract class DataPicker {
-  Iterable<PageNode> getCollection(PageNode node);
-  Iterable getCollectionValue(PageNode node);
-  String getValue(PageNode node, {String separator = "\n"});
+  Iterable<PageNode> getCollection(PageNode node,
+      {Map<String, dynamic>? initialVariables});
+  Iterable getCollectionValue(PageNode node,
+      {Map<String, dynamic>? initialVariables});
+  String getValue(PageNode node,
+      {String separator = "\n", Map<String, dynamic>? initialVariables});
 }
 
 /// Query string syntax for extracting data from HTML and JSON.
@@ -149,6 +150,7 @@ abstract class DataPicker {
 /// '.content/p/@text'     // First paragraph in content
 /// ```
 
+// ignore: unused_element
 final _log = Logger('QueryString');
 
 class QueryString extends DataPicker {
@@ -313,9 +315,7 @@ class QueryString extends DataPicker {
       }
     }
 
-    //_log.fine("execute queries result: $result");
-
-    _log.fine("execute queries result: $result, simplify: $simplify");
+    //_log.fine("execute queries result: $result, simplify: $simplify");
     final finalResult = !simplify
         ? result.data.map((e) => e is Element
             ? PageNode(node.pageData, element: e)
@@ -338,7 +338,7 @@ class QueryString extends DataPicker {
 
   QueryResultWithVariables _executeSingleQuery(
       QueryPart query, PageNode node, Map<String, dynamic> variables) {
-    _log.fine("execute query part: $query, variables: $variables");
+    //_log.fine("execute query part: $query, variables: $variables");
     // Resolve variables in path
     final resolver = VariableResolver(variables);
 
@@ -370,31 +370,36 @@ class QueryString extends DataPicker {
     }
 
     final transformResult =
-        applyAllTransforms(node, result.data, query.transforms, variables);
+        _applyAllTransforms(node, result.data, query.transforms, variables);
 
     variables.addAll(transformResult.variables);
     result = QueryResult(transformResult.result);
 
-    _log.finer("execute result $transformResult", variables);
+    //_log.finer("execute result $transformResult", variables);
     return QueryResultWithVariables(result: result, variables: {...variables});
   }
 
   @override
-  Iterable<PageNode> getCollection(PageNode node) {
-    final result = execute(node, simplify: false);
+  Iterable<PageNode> getCollection(PageNode node,
+      {bool simplify = true, Map<String, dynamic>? initialVariables}) {
+    final result =
+        execute(node, simplify: false, initialVariables: initialVariables);
     // _log.fine(
     //     "getCollection result: $result ${result.runtimeType} ${result.length}");
     return List<PageNode>.from(result);
   }
 
   @override
-  Iterable getCollectionValue(PageNode node) {
-    return getCollection(node).map((e) => e.element ?? e.jsonData);
+  Iterable getCollectionValue(PageNode node,
+      {Map<String, dynamic>? initialVariables}) {
+    return getCollection(node, initialVariables: initialVariables)
+        .map((e) => e.element ?? e.jsonData);
   }
 
   @override
-  String getValue(PageNode node, {String separator = '\n'}) {
-    final result = execute(node);
+  String getValue(PageNode node,
+      {String separator = '\n', Map<String, dynamic>? initialVariables}) {
+    final result = execute(node, initialVariables: initialVariables);
     return result is List ? result.join(separator) : (result ?? "").toString();
   }
 
@@ -425,7 +430,7 @@ class QueryString extends DataPicker {
   }
 }
 
-ResultWithVariables applyAllTransforms(
+ResultWithVariables _applyAllTransforms(
     PageNode node,
     dynamic value,
     Map<String, GroupTransformer> transformMaps,
