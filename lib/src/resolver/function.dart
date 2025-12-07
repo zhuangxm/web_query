@@ -9,7 +9,7 @@ typedef TransformFunction = dynamic Function(dynamic value);
 typedef CreateTransformFunction = TransformFunction Function(
     Map<String, dynamic> params);
 
-Map<String, CreateTransformFunction> _buildinFunctions = {
+Map<String, CreateTransformFunction> _buildInFunctions = {
   "upper": (params) => (v) => toUpperCase(v),
   "lower": (params) => (v) => toLowerCase(v),
   "md5": (params) => (v) => md5Hash(v),
@@ -33,10 +33,14 @@ class FunctionResolver implements Resolver {
     return getCreateFunction(functionName) != null;
   }
 
+  static String getAllFunctionName() {
+    return {..._buildInFunctions, ...defaultFunctions}.keys.join("|");
+  }
+
   CreateTransformFunction? getCreateFunction(String functionName) {
     return functions[functionName] ??
         defaultFunctions[functionName] ??
-        _buildinFunctions[functionName];
+        _buildInFunctions[functionName];
   }
 
   @override

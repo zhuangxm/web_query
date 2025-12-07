@@ -1,6 +1,14 @@
+## 0.8.8
+
+### Fixes
+
+- fix newly added function or user defined function transforms could not connect using ;
+
 ## 0.8.7
 
-- **Attention**: version 0.8.6 and 0.8.5 should not be used
+### Attention
+
+- version 0.8.6 and 0.8.5 should not be used
 
 ### Fixes
 

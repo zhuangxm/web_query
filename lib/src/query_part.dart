@@ -68,7 +68,8 @@ class QueryPart {
     // Example: "upper;regexp:/a;b/c/;lower" -> ["upper", "regexp:/a;b/c/", "lower"]
 
     // Known transform keywords that can follow a semicolon
-    const transformKeywords = r'(?:upper|lower|json|jseval|regexp)';
+    final transformKeywords =
+        '(?:json|jseval|regexp|${FunctionResolver.getAllFunctionName()})';
 
     // Split on semicolons that are:
     // 1. NOT preceded by a backslash (negative lookbehind: (?<!\\))
