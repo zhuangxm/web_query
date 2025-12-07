@@ -97,7 +97,7 @@ class RegExpTransformer extends Transformer {
 
   @override
   ResultWithVariables transform(dynamic value) {
-    _log.finer("Transforming $value with $this");
+    //_log.finer("Transforming $value with $this");
     if (value == null) return ResultWithVariables(result: null);
     return ResultWithVariables(result: _transformInter(value));
   }

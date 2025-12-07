@@ -200,7 +200,7 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
 
   // Try to parse as JSON
   try {
-    _log.warning("parse text: $text");
+    // _log.warning("parse text: $text");
     return json.jsonDecode(text);
   } catch (e) {
     _log.warning('Failed to parse JSON text $text error: $e');

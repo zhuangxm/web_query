@@ -7,11 +7,10 @@ import 'package:web_query/src/resolver/function.dart';
 final _log = Logger("Transformer.common");
 
 class ResultWithVariables {
-  dynamic result;
+  late dynamic result;
   Map<String, dynamic> variables = const {};
 
-  bool isValid() =>
-      result != null && result != 'null' && result.toString().trim().isNotEmpty;
+  bool isValid(v) => v != null && v != 'null' && v.toString().trim().isNotEmpty;
 
   @override
   String toString() {
@@ -19,9 +18,12 @@ class ResultWithVariables {
   }
 
   ResultWithVariables({
-    this.result,
+    result,
     this.variables = const {},
-  });
+  }) {
+    this.result =
+        result is Iterable ? result.where((e) => isValid(e)).toList() : result;
+  }
 }
 
 abstract class Transformer {
@@ -129,7 +131,7 @@ class SimpleFunctionTransformer extends Transformer {
 
   @override
   ResultWithVariables transform(value) {
-    _log.finer("Transforming $value with $functionName");
+    //_log.finer("Transforming $value with $functionName");
 
     final params = tryDecodeParams();
 
@@ -150,7 +152,7 @@ class KeepTransformer extends Transformer {
   KeepTransformer(this.rawString) : keep = rawString != 'false';
   @override
   ResultWithVariables transform(value) {
-    _log.fine("keep $keep, value: $value");
+    //_log.fine("keep $keep, value: $value");
     if (!keep) {
       return ResultWithVariables(result: null, variables: {});
     }

@@ -1,14 +1,22 @@
+## 0.8.6
+
+### Fixes
+
+- **Transformer**: Fixed issue where result would not filter out null , `null` or empty strings from lists
+
 ## 0.8.5
 
 ### Documentation
 
 - **Global Variables and Initial Variables**: Added a dedicated section to `README.md`
+
   - Documents built-in globals: `pageUrl`, `rootUrl`, `time`
   - Explains `VariableResolver.defaultVariable` and how to override or extend it
   - Details the `initialVariables` parameter for `QueryString.execute`, `getValue`, `getCollection`, and `getCollectionValue`
   - Includes practical examples for passing context (e.g., `pageUrl`) and computed values
 
 - **Custom Transform Functions**: Added a new section to `README.md`
+
   - Documents `FunctionResolver.defaultFunctions` as the registry for named transforms
   - Provides examples for registering transforms (e.g., `slugify`, `trim`) and using them via `?transform=`
   - Notes on function signatures and optional JSON parameters
@@ -23,13 +31,14 @@
 - Documentation-only update; no runtime or API changes
 
 ## 0.8.2
-- **Fix**:  correct handle javascript variable definition omit ; at the end of text. and could be space before ;
+
+- **Fix**: correct handle javascript variable definition omit ; at the end of text. and could be space before ;
 
 ## 0.8.1
 
 - **New Text Transforms**: Added 4 new text transformation functions:
   - `base64` - Encode text to Base64
-  - `base64decode` - Decode Base64 to text  
+  - `base64decode` - Decode Base64 to text
   - `reverse` - Reverse string characters
   - `md5` - Generate MD5 hash (32-character lowercase hex)
 - **Comprehensive Documentation**: Added extensive module-level documentation to all transform modules
@@ -41,12 +50,14 @@
   - Enables testing of deep search and JSON path features
 
 ### Changed
+
 - **Transform Pipeline Architecture**: Refactored to enforce correct execution order regardless of parameter order in query string
 - **Documentation Structure**: Reorganized and enhanced all transform module documentation with usage examples
 - **Query Validation**: Fixed path formatting in query info extraction (removed leading slashes)
 - **Error Messages**: Improved query validation error formatting
 
 ### Fixed
+
 - **Critical Transform Pipeline Bug**: Transform execution order now guaranteed to be: transform → update → filter → index → save
   - Previously, execution order depended on map iteration order, causing unpredictable behavior
   - Now uses LinkedHashMap with explicit ordering to ensure deterministic execution
@@ -59,12 +70,14 @@
 - **Path Formatting**: Query info now shows paths without leading slashes for consistency
 
 ### Technical Details
+
 - Added `crypto: ^3.0.3` dependency for MD5 hashing
 - Centralized transform validation with `validTextTransforms` constant for easier maintenance
 
 ## 0.8.0
 
 ### Added
+
 - **JSON Deep Search**: New `..` operator for recursive JSON key searching
   - `json:..keyName` - Find all occurrences of a key anywhere in the JSON structure
   - `json:path/..keyName` - Deep search within a specific path
@@ -72,12 +85,14 @@
   - Automatically flattens list values when multiple matches are found
 
 ### Backward Compatibility
+
 - ✅ 100% backward compatible - all existing code continues to work
 - ✅ All existing APIs unchanged
 - ✅ Deprecated functions still work with migration warnings
 - ✅ Transform behavior identical except for guaranteed execution order
 
 ### Migration Notes
+
 - **Recommended**: Use `JsExecutorRegistry.register()` instead of deprecated `setJsExecutorInstance()`
 - **No Breaking Changes**: Existing code works without modification
 - **Enhanced Reliability**: Transform pipeline now guarantees correct execution order
@@ -121,6 +136,7 @@
 ### New Features
 
 - **Query Validation API**: Added comprehensive query validation with detailed error detection and suggestions
+
   - `QueryString.validate()` - Validate query syntax without executing
   - Detects invalid schemes with typo suggestions (e.g., "jsn" → "json")
   - Validates parameter syntax and suggests corrections
@@ -131,6 +147,7 @@
   - Query part indexing to identify which part contains issues
 
 - **Index Parameter**: Added `?index=` parameter to select the nth element from query results
+
   - Static index: `*div@?index=2` - Get 3rd element (0-indexed)
   - Variable index: `.link@href?regexp=/\d+/&save=idx ++ *div@?index=${idx}` - Use saved variable as index
   - Negative index: `*div@?index=-1` - Get last element
@@ -139,15 +156,17 @@
   - Supports variable arithmetic: `?index=${i + 1}` for dynamic indexing
 
 - **Array Pipe Operator (`>>>`)**: Added `>>>` operator to treat previous results as a whole JSON array
+
   - Enables JSON range operations: `*div@ >>> json:0-2` - Get first 3 elements
   - Multi-index selection: `*div@ >>> json:1,3,5` - Get elements at specific indices
   - Can be combined with regular pipe: `*div@ >>> json:0-4 >> json:name` - Get first 5, then extract name from each
-  - **Key Difference from `>>`**: 
+  - **Key Difference from `>>`**:
     - `>>` pipes each element individually (one at a time)
     - `>>>` treats the entire result as one JSON array (all at once)
   - Example: `*div@text >> json:length` gets length of each text vs `*div@text >>> json:length` gets count of all divs
 
 - **Variable Arithmetic**: Added support for arithmetic expressions in variables
+
   - Use `${expression}` syntax for calculations (e.g., `${index + 1}`, `${count * 2}`)
   - Works in paths, index parameters, and templates
   - Powered by `function_tree` package for expression evaluation
@@ -163,6 +182,7 @@
 ### Improvements
 
 - **Smart Regex Validation**: Improved regex pattern validation to avoid false positives
+
   - Correctly recognizes valid patterns like `\d+`, `\w+`, `[a-z]+`, `(abc)+`
   - Only warns about genuinely suspicious patterns like `test.com` (unescaped dot)
   - Context-aware checking for quantifiers (`*`, `+`, `?`)
@@ -226,7 +246,6 @@ if (!result.isValid) {
 
 ## 0.6.4
 
-
 ### Bug Fixes
 
 - **Template Scheme URL Parsing**: Fixed issue where template URLs containing query parameters were incorrectly parsed as QueryPart parameters.
@@ -241,7 +260,6 @@ if (!result.isValid) {
 
 ## 0.6.3
 
-
 ### Bug Fixes
 
 - **Variable Resolution in QueryPart Parameters**: Fixed issue where saved variables were not being resolved in QueryPart parameters (e.g., URL query parameters, URL modification parameters).
@@ -255,7 +273,6 @@ if (!result.isValid) {
 - Created new `QueryPart` with resolved values to ensure proper variable substitution across all query schemes
 
 ## 0.6.2
-
 
 ### Fix bugs
 
