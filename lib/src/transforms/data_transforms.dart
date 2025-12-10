@@ -199,7 +199,7 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
     }
   }
 
-  return tryParseJson(text);
+  return tryParseJson(text, discard: true);
 }
 
 /// Apply update transform to merge JSON objects

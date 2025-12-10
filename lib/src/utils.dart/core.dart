@@ -4,7 +4,8 @@ import 'package:logging/logging.dart';
 
 final _log = Logger("utils");
 
-dynamic tryParseJson(String text, {bool throwException = false}) {
+dynamic tryParseJson(String text,
+    {bool throwException = false, discard = false}) {
   if (text.isEmpty) return null;
   // Try to parse as JSON
   try {
@@ -16,7 +17,7 @@ dynamic tryParseJson(String text, {bool throwException = false}) {
     } catch (e) {
       if (throwException) rethrow;
       _log.warning('Failed to parse JSON text $text error: $e');
-      return text;
+      return discard ? null : text;
     }
   }
 }
