@@ -23,12 +23,16 @@ class DataQueryWidget extends HookWidget {
     super.key,
     required this.pageData,
     this.onToggleExpand,
+    this.query = "",
     this.title = "Data Reader",
+    this.onQueryChanged,
   });
 
   final PageData? pageData;
   final VoidCallback? onToggleExpand;
+  final ValueChanged<String>? onQueryChanged;
   final String title;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +69,7 @@ class DataQueryWidget extends HookWidget {
         debounceTimer?.cancel();
         debounceTimer = Timer(const Duration(milliseconds: 300), () {
           final query = queryController.text.trim();
+          onQueryChanged?.call(query);
           if (query.isEmpty || pageData == null) {
             filterResults.value = [];
             valueResult.value = null;
@@ -126,6 +131,11 @@ class DataQueryWidget extends HookWidget {
         queryController.removeListener(executeQuery);
       };
     }, [pageData]);
+
+    useEffect(() {
+      queryController.text = query;
+      return null;
+    }, [query]);
 
     return Container(
       width: double.infinity,

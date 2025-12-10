@@ -1,8 +1,14 @@
+import 'dart:math';
+
 import 'package:html/dom.dart';
+import 'package:logging/logging.dart';
+import 'package:web_query/src/utils.dart/core.dart';
 
 import 'query_part.dart';
 import 'query_result.dart';
 
+// ignore: unused_element
+final _log = Logger('html_query');
 QueryResult applyHtmlPathFor(Element? element, QueryPart query) {
   if (element == null) return QueryResult([]);
 
@@ -35,9 +41,21 @@ List<Element> navigateElement(
 
   for (var part in parts) {
     if (currentElements.isEmpty) return [];
-    currentElements = currentElements
-        .expand((elem) => applySingleNavigation(elem, part))
-        .toList();
+    //support index and range operation
+    var index = int.tryParse(part);
+    if (index != null) {
+      if (index < 0) {
+        index = max(0, currentElements.length + index);
+      }
+      currentElements =
+          currentElements.length > index ? [currentElements[index]] : [];
+    } else if (RegExp(r"\d+-\d+").hasMatch(part)) {
+      currentElements = subList(currentElements, part);
+    } else {
+      currentElements = currentElements
+          .expand((elem) => applySingleNavigation(elem, part))
+          .toList();
+    }
   }
 
   return currentElements;

@@ -1,3 +1,9 @@
+## 0.9.0
+- **NewFeature**: adding some improvement to query syntax and ui.
+  - support negative index to json query. for example -1 means last .
+  - also support range operation to html, -1, 0-2, 3, etc..
+  - enable save query string on DataQueryWidget by adding query and onQueryChanged parameters to DataQueryWidget constructor. 
+
 ## 0.8.8
 
 ### Fixes

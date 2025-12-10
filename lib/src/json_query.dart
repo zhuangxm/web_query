@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'package:web_query/src/utils.dart/core.dart';
 
 import 'query_result.dart';
 
@@ -9,7 +9,7 @@ QueryResult applyJsonPathFor(dynamic data, String path) {
 }
 
 QueryResult walkJsonPath(dynamic data, Iterable<String> pathParts) {
-  if (pathParts.isEmpty) return QueryResult([]);
+  if (pathParts.isEmpty) return QueryResult(data);
   return resolveJsonMultiPath(data, pathParts.first, pathParts.skip(1));
 }
 
@@ -107,12 +107,7 @@ dynamic resolveJsonPath(dynamic data, String path) {
 
   if (data is List) {
     if (path.contains('-')) {
-      final parts = path.split('-');
-      if (parts.length == 2) {
-        final start = int.tryParse(parts[0]) ?? 0;
-        final end = int.tryParse(parts[1]) ?? data.length;
-        return data.sublist(start, min(end + 1, data.length));
-      }
+      return subList(data, path);
     } else {
       final index = int.tryParse(path);
       if (index != null) {

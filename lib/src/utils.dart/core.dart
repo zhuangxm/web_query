@@ -16,7 +16,12 @@ dynamic tryParseJson(String text, {bool throwException = false}) {
     } catch (e) {
       if (throwException) rethrow;
       _log.warning('Failed to parse JSON text $text error: $e');
-      return null;
+      return text;
     }
   }
+}
+
+List<T> subList<T>(List<T> data, String path) {
+  final range = path.split('-').map(int.parse).toList();
+  return data.skip(range[0]).take(range[1] - range[0] + 1).toList();
 }
