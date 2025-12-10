@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:gbk_codec/gbk_codec.dart';
 import 'package:html/dom.dart';
 import 'package:logging/logging.dart';
+import 'package:web_query/src/utils.dart/core.dart';
 import 'package:xml2json/xml2json.dart';
 
 final _log = Logger("PageData");
@@ -88,7 +89,7 @@ class PageData {
 
       // Decode JSON from possibly converted text
       try {
-        return PageData.json(url, jsonDecode(text));
+        return PageData.json(url, tryParseJson(text, throwException: true));
       } catch (_) {}
     }
 

@@ -6,6 +6,7 @@ import 'package:web_query/src/query_part.dart';
 import 'package:web_query/src/transforms.dart';
 import 'package:web_query/src/transforms/common.dart';
 import 'package:web_query/src/transforms/javascript.dart';
+import 'package:web_query/src/utils.dart/core.dart';
 
 import 'src/html_query.dart';
 import 'src/json_query.dart';
@@ -295,7 +296,8 @@ class QueryString extends DataPicker {
                     : (item is String && query.scheme == 'html')
                         ? PageData(node.pageData.url, item).getRootElement()
                         : (item is String && query.scheme == 'json')
-                            ? _tryParseJson(node, item)
+                            ? PageNode(node.pageData,
+                                jsonData: tryParseJson(item))
                             : PageNode(node.pageData, jsonData: item);
             final subResultWithVariables =
                 _executeSingleQuery(query, itemNode, variables);
@@ -345,7 +347,7 @@ class QueryString extends DataPicker {
     query.resolve(resolver);
 
     //_log.fine("execute query: $query");
-    if (query.scheme == 'template') {
+    if (query.scheme == QueryPart.schemeTemplate) {
       return QueryResultWithVariables(
           result: QueryResult([query.path]), variables: {...variables});
     }
@@ -401,15 +403,6 @@ class QueryString extends DataPicker {
       {String separator = '\n', Map<String, dynamic>? initialVariables}) {
     final result = execute(node, initialVariables: initialVariables);
     return result is List ? result.join(separator) : (result ?? "").toString();
-  }
-
-  PageNode _tryParseJson(PageNode node, String item) {
-    try {
-      final json = jsonDecode(item);
-      return PageNode(node.pageData, jsonData: json);
-    } catch (e) {
-      return PageNode(node.pageData, jsonData: item);
-    }
   }
 
   @override

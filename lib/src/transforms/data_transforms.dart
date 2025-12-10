@@ -97,6 +97,7 @@ library;
 import 'dart:convert' as json;
 
 import 'package:logging/logging.dart';
+import 'package:web_query/src/utils.dart/core.dart';
 
 final _log = Logger('QueryString.Transforms.Data');
 
@@ -198,14 +199,7 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
     }
   }
 
-  // Try to parse as JSON
-  try {
-    // _log.warning("parse text: $text");
-    return json.jsonDecode(text);
-  } catch (e) {
-    _log.warning('Failed to parse JSON text $text error: $e');
-    return null;
-  }
+  return tryParseJson(text);
 }
 
 /// Apply update transform to merge JSON objects
