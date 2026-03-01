@@ -181,18 +181,19 @@ dynamic applyRegexpTransform(PageNode node, dynamic value, String pattern) {
 
   final regexPattern = parsed.pattern;
   final replacement = parsed.replacement;
+  final hasReplacement = parsed.hasReplacement;
 
   try {
     final regexp = RegExp(regexPattern, multiLine: true);
     final valueStr = value.toString();
 
-    // Pattern-only mode (empty replacement part)
-    if (replacement.isEmpty) {
+    // Pattern-only mode (no replacement part provided)
+    if (!hasReplacement) {
       final match = regexp.firstMatch(valueStr);
       return match?.group(0);
     }
 
-    // Replace mode
+    // Replace mode (replacement provided, even if empty)
     final preparedReplacement = prepareReplacement(node, replacement);
     return valueStr.replaceAllMapped(regexp, (Match match) {
       var result = preparedReplacement;
@@ -250,18 +251,42 @@ dynamic applyRegexpTransform(PageNode node, dynamic value, String pattern) {
 /// parseRegexpPattern('invalid');
 /// // Returns: null
 /// ```
-({String pattern, String replacement})? parseRegexpPattern(String pattern) {
-  // Decode pattern after splitting to preserve escaped slashes
-  final parts =
-      pattern.split(RegExp(r'(?<!\\)/')).where((e) => e.isNotEmpty).toList();
+({String pattern, String replacement, bool hasReplacement})? parseRegexpPattern(
+    String pattern) {
+  // Split by unescaped slashes
+  final parts = pattern.split(RegExp(r'(?<!\\)/'));
+
+  // Remove leading empty string (before first /)
+  if (parts.isNotEmpty && parts[0].isEmpty) {
+    parts.removeAt(0);
+  }
+
+  // Track if there was a trailing slash (indicates replacement mode)
+  final hasTrailingSlash = parts.isNotEmpty && parts[parts.length - 1].isEmpty;
+
+  // Remove trailing empty string (after last /)
+  if (hasTrailingSlash) {
+    parts.removeLast();
+  }
 
   if (parts.isEmpty) {
     return null;
   }
 
-  // If only pattern provided, replacement is empty
+  // Validate that the pattern is not empty
+  if (parts[0].isEmpty) {
+    return null;
+  }
+
+  // Determine if replacement was provided
+  final bool hasReplacement;
   if (parts.length == 1) {
+    // Only pattern, no replacement
+    hasReplacement = false;
     parts.add("");
+  } else {
+    // Has replacement (even if empty)
+    hasReplacement = true;
   }
 
   // Decode special characters in pattern
@@ -275,7 +300,11 @@ dynamic applyRegexpTransform(PageNode node, dynamic value, String pattern) {
   // Decode escaped characters in replacement
   final replacementStr = parts[1].replaceAll(r'\/', '/').replaceAll(r'\;', ';');
 
-  return (pattern: regexPattern, replacement: replacementStr);
+  return (
+    pattern: regexPattern,
+    replacement: replacementStr,
+    hasReplacement: hasReplacement
+  );
 }
 
 /// Prepare replacement string by substituting page context variables

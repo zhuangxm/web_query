@@ -1,3 +1,13 @@
+## 0.9.1
+
+### Fixes
+
+- **Regexp Transform**: Fixed bug where empty replacement `/pattern//` was incorrectly treated as extraction mode `/pattern/`. Now properly distinguishes between:
+  - Extraction mode: `/pattern/` - returns the first match
+  - Empty replacement mode: `/pattern//` - removes all matches (replaces with empty string)
+  - Example: `"gall"` with `/g//` now correctly returns `"all"` instead of `"g"`
+- **Regexp Transform**: Added validation to reject invalid empty patterns like `//` that would match at every position
+
 ## 0.9.0
 - **NewFeature**: adding some improvement to query syntax and ui.
   - support negative index to json query. for example -1 means last .
@@ -47,6 +57,8 @@
 - Documentation-only update; no runtime or API changes
 
 ## 0.8.2
+
+### Fixed
 
 - **Fix**: correct handle javascript variable definition omit ; at the end of text. and could be space before ;
 
@@ -157,7 +169,7 @@
   - Detects invalid schemes with typo suggestions (e.g., "jsn" → "json")
   - Validates parameter syntax and suggests corrections
   - Warns about common regexp pattern mistakes (unescaped special characters)
-  - Warns about template variable issues (missing `$`, empty variables, whitespace)
+  - Warns about template variable issues (missing $, empty variables, whitespace)
   - Returns `ValidationResult` with errors, warnings, and query structure information
   - Position tracking for all errors and warnings
   - Query part indexing to identify which part contains issues

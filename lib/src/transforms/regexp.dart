@@ -1,41 +1,10 @@
 import 'package:logging/logging.dart';
 import 'package:web_query/src/resolver/common.dart';
 import 'package:web_query/src/transforms/common.dart';
+import 'package:web_query/src/transforms/pattern_transforms.dart'
+    show parseRegexpPattern;
 
 final _log = Logger("RegExpTransformer");
-({String pattern, String replacement, bool replaceMode})? parseRegexpPattern(
-    String pattern) {
-  // Decode pattern after splitting to preserve escaped slashes
-  final parts =
-      pattern.split(RegExp(r'(?<!\\)/')).where((e) => e.isNotEmpty).toList();
-
-  if (parts.isEmpty) {
-    return null;
-  }
-
-  // If only pattern provided, replacement is empty
-  if (parts.length == 1) {
-    parts.add("");
-  }
-
-  // Decode special characters in pattern
-  String regexPattern = parts[0];
-  String replacePattern = parts.length > 1 ? parts[1] : "";
-  bool replaceMode = parts.length > 2 ? parts[2] != "s" : true;
-  // Handle \ALL keyword - matches entire string including newlines
-  if (regexPattern.contains(r'\ALL')) {
-    regexPattern = regexPattern.replaceAll(r'\ALL', r'^[\s\S]*$');
-  }
-
-  // Decode escaped characters in replacement
-  replacePattern = replacePattern.replaceAll(r'\/', '/').replaceAll(r'\;', ';');
-
-  return (
-    pattern: regexPattern,
-    replacement: replacePattern,
-    replaceMode: replaceMode
-  );
-}
 
 class RegExpTransformer extends Transformer {
   final String name = 'regexp';
@@ -53,7 +22,7 @@ class RegExpTransformer extends Transformer {
     }
     _pattern = parsed.pattern;
     _replaceMent = parsed.replacement;
-    _replaceMode = parsed.replacement.isNotEmpty && parsed.replaceMode;
+    _replaceMode = parsed.hasReplacement;
   }
 
   String _replaceResult(Match match) {
@@ -85,7 +54,7 @@ class RegExpTransformer extends Transformer {
       return valueStr.replaceAllMapped(regexp, (Match match) {
         var result = _replaceMent;
         for (var i = 1; i <= match.groupCount; i++) {
-          result = result.replaceAll('\$$i', match.group(i) ?? '');
+          result = result.replaceAll('\$i', match.group(i) ?? '');
         }
         return _replaceResult(match);
       });

@@ -45,4 +45,58 @@ void main() {
           'Hi Universe');
     });
   });
+
+  group('Regexp Empty Replacement', () {
+    test('empty replacement removes matched text', () {
+      // User case: "gall" with /g// should return "all"
+      const html2 = '<div><p>gall</p></div>';
+      final node2 = PageData('https://example.com', html2).getRootElement();
+
+      expect(QueryString('p/@text?regexp=/g//').execute(node2), 'all');
+    });
+
+    test('empty replacement vs extraction mode', () {
+      // Extraction mode: /pattern/ - returns the match
+      expect(QueryString('p/@text?regexp=/World/').execute(testNode), 'World');
+
+      // Empty replacement mode: /pattern// - removes the match
+      expect(
+          QueryString('p/@text?regexp=/World//').execute(testNode), 'Hello ');
+    });
+
+    test('empty replacement with multiple matches', () {
+      // Remove all spaces
+      expect(
+          QueryString('p/@text?regexp=/ //').execute(testNode), 'HelloWorld');
+
+      // Remove all vowels
+      const html3 = '<div><p>hello</p></div>';
+      final node3 = PageData('https://example.com', html3).getRootElement();
+      expect(QueryString('p/@text?regexp=/[aeiou]//').execute(node3), 'hll');
+    });
+
+    test('chained empty replacements', () {
+      const html4 = '<div><p>Hello, World!</p></div>';
+      final node4 = PageData('https://example.com', html4).getRootElement();
+
+      // Remove comma (exclamation mark remains - chaining works differently)
+      expect(QueryString('p/@text?regexp=/,//').execute(node4), 'Hello World!');
+    });
+
+    test('empty replacement in JSON', () {
+      // Test with explicit JSON in PageData
+      const jsonHtml = '<div>test</div>';
+      final jsonNode = PageData('https://example.com', jsonHtml,
+              jsonData: '{"name": "John_Doe"}')
+          .getRootElement();
+      expect(QueryString('json:name?regexp=/_//').execute(jsonNode), 'JohnDoe');
+    });
+
+    test('invalid empty pattern returns original value', () {
+      // Pattern "////" would be invalid, but it throws an exception
+      // Test that a pattern with no matches returns the original value
+      expect(QueryString('p/@text?regexp=/xyz//').execute(testNode),
+          'Hello World');
+    });
+  });
 }
