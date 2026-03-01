@@ -72,10 +72,12 @@ final pageData = PageData(
 
 The decoder handles these special Nuxt.js markers:
 
-- **Reactive / ShallowReactive**: Root reactive object
+- **Reactive / ShallowReactive**: Root or nested reactive objects
 - **Ref / EmptyRef / EmptyShallowRef**: References to other indices
 - **Set**: Array representation of sets
 - **null**: Dict-as-list format `["null", key1, val1, key2, val2, ...]`
+
+Nested reactive objects are fully supported and decoded recursively.
 
 ## Examples
 
@@ -166,6 +168,31 @@ Result: `["apple", "banana", "cherry"]`
 Query: `script#__NUXT_DATA__/@text?transform=json >> json:posts/*/title`
 
 Result: `["First Post", "Second Post"]`
+
+### Nested Reactive Objects
+
+```html
+<script id="__NUXT_DATA__" type="application/json">
+[
+  ["Reactive", 1],
+  {"config": 2, "user": 3},
+  ["Reactive", 4],
+  {"name": 5},
+  {"apiUrl": 6, "timeout": 7},
+  "Alice",
+  "https://api.example.com",
+  5000
+]
+</script>
+```
+
+Query: `script#__NUXT_DATA__/@text?transform=json >> json:config/apiUrl`
+
+Result: `"https://api.example.com"`
+
+Query: `script#__NUXT_DATA__/@text?transform=json >> json:user/name`
+
+Result: `"Alice"`
 
 ## Backward Compatibility
 

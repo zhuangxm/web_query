@@ -279,7 +279,8 @@ dynamic _decodeNuxtValue(List data, dynamic idx) {
     if (marker == 'Ref' ||
         marker == 'EmptyRef' ||
         marker == 'EmptyShallowRef' ||
-        marker == 'ShallowReactive') {
+        marker == 'ShallowReactive' ||
+        marker == 'Reactive') {
       // Reference to another index
       return _decodeNuxtValue(data, value.length > 1 ? value[1] : -1);
     } else if (marker == 'Set') {
@@ -294,10 +295,6 @@ dynamic _decodeNuxtValue(List data, dynamic idx) {
         result[key.toString()] = _decodeNuxtValue(data, val);
       }
       return result;
-    } else if (marker == 'Reactive') {
-      // Nested reactive - not fully supported, return as-is
-      _log.fine('Nested Reactive marker found, returning as-is');
-      return value;
     } else {
       // Regular array - decode all elements
       return value.map((v) => _decodeNuxtValue(data, v)).toList();

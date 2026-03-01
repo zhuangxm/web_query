@@ -417,5 +417,66 @@ void main() {
       expect(pageData.jsonData, isA<Map>());
       expect(pageData.jsonData['props']['pageProps']['name'], 'Alice');
     });
+
+    test('decode Nuxt data with nested Reactive marker', () {
+      const html = '''
+      <html>
+        <script id="__NUXT_DATA__" type="application/json">
+        [
+          ["Reactive", 1],
+          {"config": 2, "user": 3},
+          ["Reactive", 4],
+          {"name": 5},
+          {"apiUrl": 6, "timeout": 7},
+          "Alice",
+          "https://api.example.com",
+          5000
+        ]
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      final result = QueryString('script#__NUXT_DATA__/@text?transform=json')
+          .execute(node);
+
+      expect(result, isA<Map>());
+      expect(result['config'], isA<Map>());
+      expect(result['config']['apiUrl'], 'https://api.example.com');
+      expect(result['config']['timeout'], 5000);
+      expect(result['user'], isA<Map>());
+      expect(result['user']['name'], 'Alice');
+    });
+
+    test('decode Nuxt data with deeply nested Reactive markers', () {
+      const html = '''
+      <html>
+        <script id="__NUXT_DATA__" type="application/json">
+        [
+          ["Reactive", 1],
+          {"level1": 2},
+          ["Reactive", 3],
+          {"level2": 4},
+          ["Reactive", 5],
+          {"level3": 6},
+          "deep value"
+        ]
+        </script>
+      </html>
+      ''';
+
+      final pageData = PageData('https://example.com', html);
+      final node = pageData.getRootElement();
+
+      final result = QueryString('script#__NUXT_DATA__/@text?transform=json')
+          .execute(node);
+
+      expect(result, isA<Map>());
+      expect(result['level1'], isA<Map>());
+      expect(result['level1']['level2'], isA<Map>());
+      expect(result['level1']['level2']['level3'], 'deep value');
+    });
   });
 }
