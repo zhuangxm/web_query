@@ -93,7 +93,7 @@ class SaveTransformer extends Transformer {
   @override
   ResultWithVariables realTransform(value) {
     final extractedValue = value is List ? value.firstOrNull : value;
-    _log.fine("save $value => $extractedValue to $varName");
+    //_log.fine("save $value => $extractedValue to $varName");
     return ResultWithVariables(
         result: extractedValue, variables: {varName: extractedValue});
   }
