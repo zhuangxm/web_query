@@ -1,3 +1,16 @@
+## 0.9.3
+- **Nuxt.js __NUXT_DATA__ Decoding**: The `json` transform now automatically decodes Nuxt.js `__NUXT_DATA__` format
+  - Also works with `PageData` constructor's `defaultJsonId` parameter for automatic extraction
+
+### New Features
+
+- **Nuxt.js __NUXT_DATA__ Decoding**: The `json` transform now automatically decodes Nuxt.js `__NUXT_DATA__` format
+  - Automatically detects and decodes the compact array-based format used by Nuxt.js for state serialization
+  - Converts references and special markers (`Reactive`, `Ref`, `Set`, `null`, etc.) to regular JSON
+  - Works seamlessly with existing `json` transform: `script#__NUXT_DATA__/@text?transform=json`
+  - Example: `[["Reactive", 1], {"props": 2}, {"locale": 3}, "en-US"]` → `{"props": {"locale": "en-US"}}`
+  - Based on format described at: https://developers.thequestionmark.org/2024/02/06/making-sense-of-nuxt-data
+
 ## 0.9.1
 
 ### Fixes

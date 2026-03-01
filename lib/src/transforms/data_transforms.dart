@@ -199,7 +199,113 @@ dynamic applyJsonTransform(dynamic value, String? varName) {
     }
   }
 
-  return tryParseJson(text, discard: true);
+  final parsed = tryParseJson(text, discard: true);
+
+  // Check if this is Nuxt.js __NUXT_DATA__ format and decode it
+  if (parsed is List && parsed.isNotEmpty) {
+    final decoded = _decodeNuxtData(parsed);
+    if (decoded != null) {
+      return decoded;
+    }
+  }
+
+  return parsed;
+}
+
+/// Decode Nuxt.js __NUXT_DATA__ format to regular JSON
+///
+/// Nuxt.js uses a compact array-based format for state serialization where:
+/// - First element is a header like ["Reactive", 1] or ["ShallowReactive", 1]
+/// - Second element (index 1) is the root object
+/// - Object values are indices pointing to other elements in the array
+/// - Special array markers: "Ref", "Set", "null" (dict-as-list), etc.
+///
+/// Example input:
+/// ```
+/// [
+///   ["Reactive", 1],
+///   {"props": 2},
+///   {"pageProps": 3},
+///   {"locale": 4, "id": 5},
+///   "en-US",
+///   1234
+/// ]
+/// ```
+///
+/// Returns:
+/// ```
+/// {"props": {"pageProps": {"locale": "en-US", "id": 1234}}}
+/// ```
+///
+/// Based on format described at:
+/// https://developers.thequestionmark.org/2024/02/06/making-sense-of-nuxt-data
+///
+/// Returns the decoded data if valid Nuxt format, otherwise returns null.
+dynamic decodeNuxtData(dynamic data) {
+  if (data is! List || data.isEmpty) return null;
+  return _decodeNuxtData(data);
+}
+
+dynamic _decodeNuxtData(List data) {
+  if (data.length <= 1) return null;
+
+  // Check for Nuxt.js header
+  final header = data[0];
+  if (header is! List || header.length != 2) return null;
+  if (header[0] != "Reactive" && header[0] != "ShallowReactive") return null;
+  if (header[1] != 1) return null;
+
+  // Decode starting from index 1 (the root)
+  return _decodeNuxtValue(data, 1);
+}
+
+/// Recursively decode a value from Nuxt.js data array
+dynamic _decodeNuxtValue(List data, dynamic idx) {
+  // Handle negative index (may occur in some cases)
+  if (idx is int && idx < 0) return null;
+
+  // Get the value at the index
+  final value = (idx is int && idx < data.length) ? data[idx] : null;
+
+  if (value is Map) {
+    // Decode map by recursively decoding all values
+    return value.map((k, v) => MapEntry(k, _decodeNuxtValue(data, v)));
+  } else if (value is List) {
+    if (value.isEmpty) return [];
+
+    final marker = value[0];
+
+    // Handle special markers
+    if (marker == 'Ref' ||
+        marker == 'EmptyRef' ||
+        marker == 'EmptyShallowRef' ||
+        marker == 'ShallowReactive') {
+      // Reference to another index
+      return _decodeNuxtValue(data, value.length > 1 ? value[1] : -1);
+    } else if (marker == 'Set') {
+      // Set represented as array
+      return value.skip(1).map((v) => _decodeNuxtValue(data, v)).toList();
+    } else if (marker == 'null') {
+      // Dict-as-list format: ["null", key1, val1, key2, val2, ...]
+      final result = <String, dynamic>{};
+      for (int i = 1; i < value.length - 1; i += 2) {
+        final key = value[i];
+        final val = value[i + 1];
+        result[key.toString()] = _decodeNuxtValue(data, val);
+      }
+      return result;
+    } else if (marker == 'Reactive') {
+      // Nested reactive - not fully supported, return as-is
+      _log.fine('Nested Reactive marker found, returning as-is');
+      return value;
+    } else {
+      // Regular array - decode all elements
+      return value.map((v) => _decodeNuxtValue(data, v)).toList();
+    }
+  } else {
+    // Primitive value (string, number, boolean, null)
+    return value;
+  }
 }
 
 /// Apply update transform to merge JSON objects

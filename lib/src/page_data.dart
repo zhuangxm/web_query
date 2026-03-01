@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:gbk_codec/gbk_codec.dart';
 import 'package:html/dom.dart';
 import 'package:logging/logging.dart';
+import 'package:web_query/src/transforms/data_transforms.dart';
 import 'package:web_query/src/utils.dart/core.dart';
 import 'package:xml2json/xml2json.dart';
 
@@ -98,13 +99,18 @@ class PageData {
 
   ///get jsonData from [document] that has id named [id]
   ///if not throw Exception.
+  ///Automatically decodes Nuxt.js __NUXT_DATA__ format if detected.
   getJsonDataById(String? id) {
     if (id?.isEmpty ?? true) return jsonData;
     final data = document?.getElementById(id!)?.innerHtml;
     if (data == null) {
       throw Exception("invalid json id: $id");
     }
-    return jsonDecode(data);
+    final decoded = jsonDecode(data);
+
+    // Check if this is Nuxt.js __NUXT_DATA__ format and decode it
+    final nuxtDecoded = decodeNuxtData(decoded);
+    return nuxtDecoded ?? decoded;
   }
 
   /// get the pageNode that represent the document's  documentElement
