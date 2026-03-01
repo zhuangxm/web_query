@@ -1,3 +1,7 @@
+## 0.9.4
+- **new feature**:
+  - adding `unique` and `sort` function 
+
 ## 0.9.3
 - **Nuxt.js __NUXT_DATA__ Decoding**: The `json` transform now automatically decodes Nuxt.js `__NUXT_DATA__` format
   - Also works with `PageData` constructor's `defaultJsonId` parameter for automatic extraction

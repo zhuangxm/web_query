@@ -142,7 +142,7 @@ export 'transforms/pattern_transforms.dart'
 // Re-export selection transforms for backward compatibility
 export 'transforms/selection_transforms.dart' show applyFilter, applyIndex;
 // Re-export text transforms for backward compatibility
-export 'transforms/text_transforms.dart' show applyTextTransform;
+//export 'transforms/text_transforms.dart' show applyTextTransform;
 // Re-export transform pipeline for backward compatibility
 
 /// Backward compatibility shim for old JS executor API

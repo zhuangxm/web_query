@@ -330,3 +330,89 @@ dynamic applyIndex(dynamic value, String indexStr) {
   // For non-list values, index=0 returns the value, others return null
   return index == 0 ? value : null;
 }
+
+/// Removes duplicate values from a list while preserving order
+///
+/// Removes duplicate elements from a list, keeping only the first occurrence
+/// of each unique value. Uses string comparison for equality.
+///
+/// ## Parameters
+///
+/// - [value] - List or single value to deduplicate
+///
+/// ## Returns
+///
+/// - For lists: New list with duplicates removed, preserving first occurrence order
+/// - For single values: The value unchanged
+/// - For null input: null
+/// - For empty lists: Empty list
+///
+/// ## Examples
+///
+/// ```dart
+/// // Primitive values
+/// applyUnique(['a', 'b', 'a', 'c']);  // ['a', 'b', 'c']
+/// applyUnique([1, 2, 3, 2, 1]);       // [1, 2, 3]
+///
+/// // Mixed types
+/// applyUnique([1, '1', 1, '1']);      // [1, '1']
+///
+/// // Objects (uses toString for comparison)
+/// applyUnique([
+///   {'id': 1, 'name': 'Alice'},
+///   {'id': 2, 'name': 'Bob'},
+///   {'id': 1, 'name': 'Alice'}
+/// ]);
+/// // Returns: [{'id': 1, 'name': 'Alice'}, {'id': 2, 'name': 'Bob'}]
+///
+/// // Single value
+/// applyUnique('value');  // 'value'
+///
+/// // Empty list
+/// applyUnique([]);  // []
+/// ```
+dynamic applyUnique(dynamic value) {
+  if (value == null) return null;
+
+  if (value is! List) {
+    // Single values are returned as-is
+    return value;
+  }
+
+  if (value.isEmpty) return [];
+
+  final result = [];
+  final seen = <String>{};
+
+  for (var item in value) {
+    // Use string representation for comparison
+    final key = '${item.runtimeType}-$item';
+
+    if (!seen.contains(key)) {
+      seen.add(key);
+      result.add(item);
+    }
+  }
+
+  return result;
+}
+
+dynamic applySort(dynamic value) {
+  if (value == null) return null;
+
+  if (value is! List) {
+    // Single values are returned as-is
+    return value;
+  }
+
+  final result = [...value]..sort((a, b) {
+      // Convert to strings for comparison
+      final strA = a.toString();
+      final strB = b.toString();
+
+      // Compare as strings
+      return strA.compareTo(strB);
+    });
+
+  return result;
+}

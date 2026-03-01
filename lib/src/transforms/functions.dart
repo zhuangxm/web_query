@@ -32,19 +32,20 @@ String? sha1Hash(dynamic value) {
   return digest.toString();
 }
 
-/// Reversed string, or null if input is null
+/// Reversed string or list, or null if input is null
 ///
 /// ## Examples
 ///
 /// ```dart
-/// reverseString('Hello');  // 'olleH'
-/// reverseString('12345');  // '54321'
-/// reverseString('a');  // 'a'
-/// reverseString('');  // ''
-/// reverseString(null);  // null
+/// reverse('Hello');  // 'olleH'
+/// reverse('12345');  // '54321'
+/// reverse('a');  // 'a'
+/// reverse('');  // ''
+/// reverse(null);  // null
 /// ```
-String? reverseString(dynamic value) {
+dynamic reverse(dynamic value) {
   if (value == null) return null;
+  if (value is List) return value.reversed.toList();
   final str = value.toString();
   return str.split('').reversed.join('');
 }

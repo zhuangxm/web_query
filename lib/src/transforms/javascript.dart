@@ -25,10 +25,13 @@ class JavascriptTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(value) {
+  ResultWithVariables realTransform(value) {
     return ResultWithVariables(result: applyJsEvalTransform(value, _rawValue));
   }
 
   @override
   String get groupName => Transformer.paramTransform;
+
+  @override
+  bool get mapList => true;
 }

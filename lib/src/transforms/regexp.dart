@@ -65,7 +65,7 @@ class RegExpTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(dynamic value) {
+  ResultWithVariables realTransform(dynamic value) {
     //_log.finer("Transforming $value with $this");
     if (value == null) return ResultWithVariables(result: null);
     return ResultWithVariables(result: _transformInter(value));
@@ -97,4 +97,7 @@ class RegExpTransformer extends Transformer {
 
   @override
   String get groupName => Transformer.paramTransform;
+
+  @override
+  bool get mapList => true;
 }

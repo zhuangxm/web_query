@@ -23,7 +23,7 @@ class FilterTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(dynamic value) {
+  ResultWithVariables realTransform(dynamic value) {
     return ResultWithVariables(result: applyFilterByList(value, _filters));
   }
 
@@ -35,7 +35,10 @@ class FilterTransformer extends Transformer {
   }
 
   @override
-  String get groupName => Transformer.paramFilter;
+  String get groupName => Transformer.paramTransform;
+
+  @override
+  bool get mapList => false;
 }
 
 class IndexTransformer extends Transformer {
@@ -51,7 +54,7 @@ class IndexTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(dynamic value) {
+  ResultWithVariables realTransform(dynamic value) {
     //_log.fine("apply index: $_rawValue to $value");
     return ResultWithVariables(result: applyIndex(value, _rawValue));
   }
@@ -64,4 +67,7 @@ class IndexTransformer extends Transformer {
 
   @override
   String get groupName => Transformer.paramIndex;
+
+  @override
+  bool get mapList => false;
 }

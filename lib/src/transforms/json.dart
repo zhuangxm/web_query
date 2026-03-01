@@ -25,11 +25,14 @@ class JsonTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(value) {
+  ResultWithVariables realTransform(value) {
     //_log.fine("transform $value to json");
     return ResultWithVariables(result: applyJsonTransform(value, _rawValue));
   }
 
   @override
   String get groupName => Transformer.paramTransform;
+
+  @override
+  bool get mapList => true;
 }

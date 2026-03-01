@@ -1,7 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:web_query/query.dart';
 
 void main() {
+  setUp(() {
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((record) {
+      print('${record.level.name}: ${record.time}: ${record.message}');
+    });
+  });
+
   group('Variables and Templates', () {
     test('save variable and use in template', () {
       const jsonData = '''

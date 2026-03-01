@@ -176,15 +176,12 @@ class QueryPart {
       Map<String, List<String>> params,
       {bool throwException = true}) {
     final transforms = <String, GroupTransformer>{
-      Transformer.paramTransform: GroupTransformer([], mapList: true),
-      Transformer.paramUpdate: GroupTransformer([], mapList: true),
-      Transformer.paramFilter: GroupTransformer([], mapList: true),
-      Transformer.paramIndex:
-          GroupTransformer([], mapList: false, enableMulti: false),
-      Transformer.paramSave:
-          GroupTransformer([], mapList: true, enableMulti: false),
-      Transformer.paramKeep:
-          GroupTransformer([], mapList: false, enableMulti: false),
+      Transformer.paramTransform: GroupTransformer([]),
+      Transformer.paramUpdate: GroupTransformer([]),
+      Transformer.paramFilter: GroupTransformer([]),
+      Transformer.paramIndex: GroupTransformer([], enableMulti: false),
+      Transformer.paramSave: GroupTransformer([], enableMulti: false),
+      Transformer.paramKeep: GroupTransformer([], enableMulti: false),
     };
 
     // Move other transform-related parameters

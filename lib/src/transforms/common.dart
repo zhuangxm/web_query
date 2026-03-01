@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:web_query/src/resolver/common.dart';
 import 'package:web_query/src/resolver/function.dart';
@@ -38,6 +39,7 @@ abstract class Transformer {
   static const String paramSave = 'save';
   static const String paramKeep = 'keep';
   static const String paramIndex = 'index';
+  static const String function = 'function';
 
   static const validTransformNames = [
     Transformer.paramRegexp,
@@ -51,7 +53,25 @@ abstract class Transformer {
 
   Resolver? resolver;
 
-  ResultWithVariables transform(dynamic value);
+  @nonVirtual
+  ResultWithVariables transform(value) {
+    if (value is List && mapList) {
+      final results = value.map((v) => realTransform(v));
+      return ResultWithVariables(
+          result: results
+              .where((v) => v.result != null)
+              .map((v) => v.result)
+              .toList(),
+          variables: results
+              .map((v) => v.variables)
+              .toList()
+              .fold({}, (prev, next) => {...prev, ...next}));
+    } else {
+      return realTransform(value);
+    }
+  }
+
+  ResultWithVariables realTransform(dynamic value);
 
   static ResultWithVariables transformMultiple(
       List<Transformer> transformers, value) {
@@ -64,11 +84,14 @@ abstract class Transformer {
     });
   }
 
+  //using resolver to modify internal variables
   void resolve(Resolver resolver);
 
   Map<String, dynamic> toJson();
 
-  String get groupName;
+  String get groupName => Transformer.paramTransform;
+
+  bool get mapList;
 
   @override
   String toString() {
@@ -81,14 +104,19 @@ class SimpleFunctionTransformer extends Transformer {
   String _rawValue = "";
   final FunctionResolver functionResolver;
   String? errorMessage;
+  bool _mapList = true;
 
   SimpleFunctionTransformer(
       {required this.functionName,
       required this.functionResolver,
       rawValue = ""}) {
     _rawValue = rawValue;
-    if (!functionResolver.hasFunction(functionName)) {
+    final functionDefiniation =
+        functionResolver.getCreateFunction(functionName);
+    if (functionDefiniation == null) {
       throw FormatException('Unknown transform: "$functionName"');
+    } else {
+      _mapList = functionDefiniation.mapList;
     }
   }
 
@@ -133,7 +161,7 @@ class SimpleFunctionTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(value) {
+  ResultWithVariables realTransform(value) {
     //_log.finer("Transforming $value with $functionName");
 
     final params = tryDecodeParams();
@@ -147,6 +175,9 @@ class SimpleFunctionTransformer extends Transformer {
 
   @override
   String get groupName => Transformer.paramTransform;
+
+  @override
+  bool get mapList => _mapList;
 }
 
 class KeepTransformer extends Transformer {
@@ -154,7 +185,7 @@ class KeepTransformer extends Transformer {
   final String rawString;
   KeepTransformer(this.rawString) : keep = rawString != 'false';
   @override
-  ResultWithVariables transform(value) {
+  ResultWithVariables realTransform(value) {
     //_log.fine("keep $keep, value: $value");
     if (!keep) {
       return ResultWithVariables(result: null, variables: {});
@@ -178,4 +209,7 @@ class KeepTransformer extends Transformer {
 
   @override
   String get groupName => Transformer.paramKeep;
+
+  @override
+  bool get mapList => false;
 }

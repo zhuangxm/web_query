@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web_query/src/transforms.dart';
 import 'package:web_query/src/transforms/functions.dart';
 
 void main() {
@@ -63,31 +62,35 @@ void main() {
 
   group('String Reversal', () {
     test('reverse simple string', () {
-      expect(reverseString('Hello'), 'olleH');
+      expect(reverse('Hello'), 'olleH');
     });
 
     test('reverse numbers', () {
-      expect(reverseString('12345'), '54321');
+      expect(reverse('12345'), '54321');
     });
 
     test('reverse single character', () {
-      expect(reverseString('a'), 'a');
+      expect(reverse('a'), 'a');
     });
 
     test('reverse empty string', () {
-      expect(reverseString(''), '');
+      expect(reverse(''), '');
     });
 
     test('reverse null returns null', () {
-      expect(reverseString(null), null);
+      expect(reverse(null), null);
     });
 
     test('reverse palindrome', () {
-      expect(reverseString('racecar'), 'racecar');
+      expect(reverse('racecar'), 'racecar');
     });
 
     test('reverse with spaces', () {
-      expect(reverseString('Hello World'), 'dlroW olleH');
+      expect(reverse('Hello World'), 'dlroW olleH');
+    });
+
+    test('reverse list', () {
+      expect(reverse(['Hello', 'World']), ['World', 'Hello']);
     });
   });
 
@@ -128,69 +131,6 @@ void main() {
     test('hash is 32 characters', () {
       final hash = md5Hash('test');
       expect(hash!.length, 32);
-    });
-  });
-
-  group('applyTextTransform with new transforms', () {
-    test('apply base64 transform', () {
-      expect(applyTextTransform('Hello', 'base64'), 'SGVsbG8=');
-    });
-
-    test('apply base64decode transform', () {
-      expect(applyTextTransform('SGVsbG8=', 'base64decode'), 'Hello');
-    });
-
-    test('apply reverse transform', () {
-      expect(applyTextTransform('Hello', 'reverse'), 'olleH');
-    });
-
-    test('apply md5 transform', () {
-      expect(
-        applyTextTransform('test', 'md5'),
-        '098f6bcd4621d373cade4e832627b4f6',
-      );
-    });
-
-    test('apply transforms to list', () {
-      expect(
-        applyTextTransform(['Hello', 'World'], 'base64'),
-        ['SGVsbG8=', 'V29ybGQ='],
-      );
-    });
-
-    test('apply reverse to list', () {
-      expect(
-        applyTextTransform(['abc', 'xyz'], 'reverse'),
-        ['cba', 'zyx'],
-      );
-    });
-
-    test('chain transforms conceptually', () {
-      // First reverse, then base64
-      final reversed = applyTextTransform('Hello', 'reverse');
-      final encoded = applyTextTransform(reversed, 'base64');
-      expect(encoded, 'b2xsZUg='); // Base64 of 'olleH'
-    });
-  });
-
-  group('Integration with existing transforms', () {
-    test('upper then base64', () {
-      final upper = applyTextTransform('hello', 'upper');
-      final encoded = applyTextTransform(upper, 'base64');
-      expect(encoded, 'SEVMTE8='); // Base64 of 'HELLO'
-    });
-
-    test('base64decode then lower', () {
-      final decoded = applyTextTransform('SEVMTE8=', 'base64decode');
-      final lower = applyTextTransform(decoded, 'lower');
-      expect(lower, 'hello');
-    });
-
-    test('reverse then md5', () {
-      final reversed = applyTextTransform('password', 'reverse');
-      final hashed = applyTextTransform(reversed, 'md5');
-      expect(hashed, isNotNull);
-      expect(hashed, isNot(md5Hash('password'))); // Different from original
     });
   });
 }

@@ -2,6 +2,7 @@ import 'package:logging/logging.dart';
 import 'package:web_query/src/resolver/common.dart';
 import 'package:web_query/src/transforms/data_transforms.dart';
 import 'package:web_query/src/transforms/functions.dart';
+import 'package:web_query/src/transforms/selection_transforms.dart';
 
 final _log = Logger("FunctionResolver");
 
@@ -9,23 +10,36 @@ typedef TransformFunction = dynamic Function(dynamic value);
 typedef CreateTransformFunction = TransformFunction Function(
     Map<String, dynamic> params);
 
-Map<String, CreateTransformFunction> _buildInFunctions = {
-  "upper": (params) => (v) => toUpperCase(v),
-  "lower": (params) => (v) => toLowerCase(v),
-  "md5": (params) => (v) => md5Hash(v),
-  "base64": (params) => (v) => base64Encode(v),
-  "base64decode": (params) => (v) => base64Decode(v),
-  "reverse": (params) => (v) => reverseString(v),
-  "sha1": (params) => (v) => sha1Hash(v),
-  "update": (params) => (v) => applyUpdateJson(v, params),
+class FunctionDefinition {
+  final bool mapList;
+  final CreateTransformFunction createFunction;
+
+  FunctionDefinition(this.mapList, this.createFunction);
+}
+
+Map<String, FunctionDefinition> _buildInFunctions = {
+  "upper": FunctionDefinition(true, (params) => (v) => toUpperCase(v)),
+  "lower": FunctionDefinition(true, (params) => (v) => toLowerCase(v)),
+  "md5": FunctionDefinition(true, (params) => (v) => md5Hash(v)),
+  "base64": FunctionDefinition(true, (params) => (v) => base64Encode(v)),
+  "base64decode": FunctionDefinition(true, (params) => (v) => base64Decode(v)),
+  "reverse": FunctionDefinition(true, (params) => (v) => reverse(v)),
+  "sha1": FunctionDefinition(true, (params) => (v) => sha1Hash(v)),
+  "update":
+      FunctionDefinition(true, (params) => (v) => applyUpdateJson(v, params)),
+  "unique": FunctionDefinition(false, (params) => (v) => applyUnique(v)),
+  "sort": FunctionDefinition(false, (params) => (v) => applySort(v)),
+  "distinct": FunctionDefinition(false, (params) => (v) => applyUnique(v)),
+  "join": FunctionDefinition(
+      false, (params) => (v) => (v as List).join(params["separator"])),
 };
 
 class FunctionResolver implements Resolver {
-  final Map<String, CreateTransformFunction> functions;
+  final Map<String, FunctionDefinition> functions;
 
   FunctionResolver(this.functions);
 
-  static Map<String, CreateTransformFunction> defaultFunctions = {};
+  static Map<String, FunctionDefinition> defaultFunctions = {};
 
   static const String functionNameKey = "function_name";
 
@@ -37,7 +51,7 @@ class FunctionResolver implements Resolver {
     return {..._buildInFunctions, ...defaultFunctions}.keys.join("|");
   }
 
-  CreateTransformFunction? getCreateFunction(String functionName) {
+  FunctionDefinition? getCreateFunction(String functionName) {
     return functions[functionName] ??
         defaultFunctions[functionName] ??
         _buildInFunctions[functionName];
@@ -54,14 +68,14 @@ class FunctionResolver implements Resolver {
       _log.warning('Function name is null');
       return value;
     } else {
-      final CreateTransformFunction? createTransformFunction =
+      final FunctionDefinition? functionDefinition =
           getCreateFunction(functionName);
-      if (createTransformFunction == null) {
+      if (functionDefinition == null) {
         _log.warning('Function $functionName is not defined');
         return value;
       }
       final TransformFunction transformFunction =
-          createTransformFunction(params);
+          functionDefinition.createFunction(params);
       return transformFunction(value);
     }
   }

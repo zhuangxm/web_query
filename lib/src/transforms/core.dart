@@ -25,10 +25,8 @@ class GroupTransformer extends Transformer {
   final List<Transformer> _transformers;
 
   List<Transformer> get transformers => _transformers;
-  final bool mapList;
   final bool enableMulti;
-  GroupTransformer(this._transformers,
-      {this.mapList = true, this.enableMulti = true});
+  GroupTransformer(this._transformers, {this.enableMulti = true});
 
   addTransform(Transformer transform) {
     if (enableMulti) {
@@ -46,24 +44,11 @@ class GroupTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(value) {
+  ResultWithVariables realTransform(value) {
     // _log.fine("group transfer $value");
     // _log.fine("group transfers $_transformers");
-    if (value is List && mapList) {
-      final results =
-          value.map((v) => Transformer.transformMultiple(transformers, v));
-      return ResultWithVariables(
-          result: results
-              .where((v) => v.result != null)
-              .map((v) => v.result)
-              .toList(),
-          variables: results
-              .map((v) => v.variables)
-              .toList()
-              .fold({}, (prev, next) => {...prev, ...next}));
-    } else {
-      return Transformer.transformMultiple(transformers, value);
-    }
+
+    return Transformer.transformMultiple(transformers, value);
   }
 
   @override
@@ -72,12 +57,10 @@ class GroupTransformer extends Transformer {
       return {};
     } else if (_transformers.length == 1) {
       return {
-        "mapList": mapList,
         "transformer": _transformers.first.toJson(),
       };
     }
     return {
-      "mapList": mapList,
       "transformers": _transformers.map((e) => e.toJson()).toList(),
     };
   }
@@ -92,6 +75,9 @@ class GroupTransformer extends Transformer {
   //should never be called
   @override
   String get groupName => throw UnimplementedError();
+
+  @override
+  bool get mapList => false;
 }
 
 class SaveTransformer extends Transformer {
@@ -105,9 +91,11 @@ class SaveTransformer extends Transformer {
   }
 
   @override
-  ResultWithVariables transform(value) {
-    //_log.fine("save $value to $varName");
-    return ResultWithVariables(result: value, variables: {varName: value});
+  ResultWithVariables realTransform(value) {
+    final extractedValue = value is List ? value.firstOrNull : value;
+    _log.fine("save $value => $extractedValue to $varName");
+    return ResultWithVariables(
+        result: extractedValue, variables: {varName: extractedValue});
   }
 
   @override
@@ -122,6 +110,9 @@ class SaveTransformer extends Transformer {
   void resolve(Resolver resolver) {
     // do nothing.
   }
+
+  @override
+  bool get mapList => false;
 
   @override
   String get groupName => Transformer.paramSave;
