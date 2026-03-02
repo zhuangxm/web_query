@@ -1,3 +1,10 @@
+## 0.9.5
+- RegExp Transform: support `/s/` suffix in three‑part form (`/pattern/replacement/s/`)
+  - Switches to single‑match extraction mode and returns the first replacement result
+  - Useful for capturing a single value without modifying the whole string
+- Documentation: updated README with Single‑Match Mode and version bump
+- Tests: added coverage for `/s/` behavior
+
 ## 0.9.4
 - **new feature**:
   - adding `unique` and `sort` function 

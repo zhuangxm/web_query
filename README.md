@@ -71,7 +71,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  web_query: ^0.9.4
+  web_query: ^0.9.5
 ```
 
 Then run:
@@ -427,6 +427,19 @@ Use `?regexp=` as a shorthand for `?transform=regexp:`:
 // Multiline support (enabled by default)
 'div@text?regexp=/^Line 2/Matched/'       // Match start of line
 'div@text?regexp=/\\ALL/Replaced/'         // Match entire content
+```
+
+#### Single‑Match Mode (`/s/`)
+
+Use a trailing `/s/` in the three‑part form to switch to extraction mode that applies only to the first match and returns the replacement result for that match, instead of replacing throughout the whole string.
+
+```dart
+// Given input "aaaaa"
+'@text?regexp=/a/b/s/'        // → "b"    (first match only, returns replacement)
+'@text?regexp=/a/b/'          // → "bbbbb" (normal replace‑all behavior)
+
+// With capture groups
+'@text?regexp:/(\\d+)/$1/s/'  // Returns the first captured number
 ```
 
 #### Special RegExp Keywords

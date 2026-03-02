@@ -52,10 +52,6 @@ class RegExpTransformer extends Transformer {
 
       // Replace mode
       return valueStr.replaceAllMapped(regexp, (Match match) {
-        var result = _replaceMent;
-        for (var i = 1; i <= match.groupCount; i++) {
-          result = result.replaceAll('\$i', match.group(i) ?? '');
-        }
         return _replaceResult(match);
       });
     } catch (e) {

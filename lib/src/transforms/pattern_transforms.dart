@@ -190,7 +190,18 @@ dynamic applyRegexpTransform(PageNode node, dynamic value, String pattern) {
     // Pattern-only mode (no replacement part provided)
     if (!hasReplacement) {
       final match = regexp.firstMatch(valueStr);
-      return match?.group(0);
+      if (replacement.isEmpty) {
+        return match?.group(0);
+      } else if (match != null) {
+        final preparedReplacement = prepareReplacement(node, replacement);
+        var result = preparedReplacement;
+        for (var i = 1; i <= match.groupCount; i++) {
+          result = result.replaceAll('\$$i', match.group(i) ?? '');
+        }
+        return result.replaceAll(r'$0', match.group(0) ?? '');
+      } else {
+        return null;
+      }
     }
 
     // Replace mode (replacement provided, even if empty)
@@ -279,11 +290,14 @@ dynamic applyRegexpTransform(PageNode node, dynamic value, String pattern) {
   }
 
   // Determine if replacement was provided
-  final bool hasReplacement;
+  bool hasReplacement;
   if (parts.length == 1) {
     // Only pattern, no replacement
     hasReplacement = false;
     parts.add("");
+  } else if (parts.length == 3 && parts[2] == 's') {
+    // Special case: /pattern/replacement/s/ means extraction mode (first match only)
+    hasReplacement = false;
   } else {
     // Has replacement (even if empty)
     hasReplacement = true;
